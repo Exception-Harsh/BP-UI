@@ -3,16 +3,16 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const { login } = useAuth();
   const navigate = useNavigate();
   const logo = new URL("../assets/logo.png", import.meta.url).href;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (login(email, password)) {
+    if (await login(username, password)) {
       navigate('/projects');
     } else {
       setError('Invalid credentials');
@@ -44,9 +44,9 @@ export default function LoginPage() {
           
           <div>
             <input
-              type="email" placeholder='Username'
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              type="username" placeholder='Username'
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
               className="h-14 mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-emerald-500 focus:border-emerald-500"
               required
             />
