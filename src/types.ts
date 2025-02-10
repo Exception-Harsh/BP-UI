@@ -7,7 +7,7 @@ export interface Project {
 
 export interface AuthContextType {
   isAuthenticated: boolean;
-  login: (username: string, password: string) => Promise<boolean>;
+  login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
   error: string;
 }
