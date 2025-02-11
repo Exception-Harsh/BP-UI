@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import {
   Menu,
   LogOut,
-  BarChart3,
+  Tags,
   DollarSign,
   XCircle,
   Building2,
@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 
 const menuItems = [
-  { id: 'sales', label: 'Sales Data', icon: BarChart3 },
+  { id: 'sales', label: 'Sales Data', icon: Tags },
   { id: 'cost', label: 'Cost Data', icon: DollarSign },
   { id: 'cancellations', label: 'Cancellations', icon: XCircle },
   { id: 'disbursement', label: 'Disbursement', icon: Building2 },
