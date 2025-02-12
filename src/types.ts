@@ -1,10 +1,3 @@
-export interface Project {
-  id: string;
-  name: string;
-  location: string;
-  status: string;
-}
-
 export interface AuthContextType {
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<boolean>;
@@ -12,7 +5,14 @@ export interface AuthContextType {
   error: string;
 }
 
-export interface LoginRequest {
-  username: string;
-  password: string;
+export interface Project {
+    projectName: string;
+    projectNumber: string;
+    totalIRR: number;
+    borrowerIRR: number;
+}
+
+export interface LoginResponse {
+  message: string;
+  code?: string; // Optional because not all logins return a code
 }
