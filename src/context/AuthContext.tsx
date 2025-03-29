@@ -178,6 +178,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem('borrowerCode');
     localStorage.removeItem('trusteeCode');
     localStorage.removeItem('pmeCode');
+    localStorage.removeItem('projectNumber');
+    localStorage.removeItem('yearMonth');
   };
 
   return (
