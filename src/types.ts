@@ -143,3 +143,53 @@ export interface newAssetSale {
   channelPartnerEmail: string;
   brokerageAmount: number;
 }
+
+export interface DisbursementRequestDto {
+  PadrDrNmbrN: number;
+  PadrPrjctNmbrN: number;
+  PadrAsstNmbrN: number;
+  PadrCtgryV: string;
+  PadrSbCtgryV: string;
+  PadrPrtyNmV: string;
+  PadrPrtyGstnV: string;
+  PadrPrtyPanV: string;
+  PadrPrtyEmlV: string;
+  PadrPrtyMblV: string;
+  PadrRsnV: string;
+  PadrPoWoV: string;
+  PadrTtlOrdrAmntN: number;
+  PadrDcmntTypV: string;
+  PadrPrtyDcmntNmbrV: string;
+  PadrPrtyDcmntDtD: Date;
+  PadrPrtyDcmntPyblDysN: number;
+  PadrPrtyDcmntAmntN: number;
+  PadrPrtyDcmntGstAmntN: number;
+  PadrPrtyDcmntTtlAmntN: number;
+  PadrPrtyTdsAmntN: number;
+  PadrPrtyAdvncAdjstdN: number;
+  PadrPrtyRtntnAmntN: number;
+  PadrPrtyOthrDdctnAmntN: number;
+  PadrPrtyPyblAmntN: number;
+  PadrPrtyOtstndngAmntN: number;
+  PadrBrrwrAccntNmbrV: string;
+  PadrPrtyBnkNmV: string;
+  PadrPrtyAccntNmV: string;
+  PadrPrtyAccntNmbrV: string;
+  PadrPrtyAccntIfscV: string;
+  PadrSttsC: string;
+  PadrApprvdAmntN: number;
+  PadrRfrncDrNmbrN: number;
+  PadrRmrksV: string;
+
+  // File attachment properties
+  AttachmentFileName: string;
+  AttachmentContentType: string;
+  Attachment: Blob; // Assuming Blob is used for file attachments
+}
+
+export interface FileDataStorageBlobDto {
+  FdsbNmbrN: number;
+  FdsbFlNmV: string;
+  FdsbFlTypV: string;
+  FdsbFlB: Uint8Array; // Using Uint8Array for byte array
+}
