@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import AssetSalesComponent from "./AssetSalesCard";
-
 import {
   Tags,
   ShoppingCart,
@@ -36,6 +35,7 @@ export default function Dashboard() {
   const { projectId } = useParams();
   const { logout } = useAuth();
   const navigate = useNavigate();
+  const role = localStorage.getItem("role");
   const [isDarkMode, setIsDarkMode] = useState(() => {
     return localStorage.getItem("theme") === "dark";
   });
@@ -54,11 +54,26 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchYearMonth = async () => {
       try {
-        const response = await fetch(endpoints.yearmonth + `${projectId}`);
+        const response = await fetch(endpoints.yearmonth + `${projectId}/${role}`);
         if (response.ok) {
           const data = await response.json();
-          setYearMonth(data.nextYearMonth);
-          localStorage.setItem("yearMonth", data.nextYearMonth);
+  
+          if (data.nextYearMonth) {
+            // Insert occurred, use the new inserted month
+            setYearMonth(data.nextYearMonth);
+            localStorage.setItem("yearMonth", data.nextYearMonth);
+          } else if (data.maxYearMonth) {
+            // No insert, use existing max
+            setYearMonth(data.maxYearMonth);
+            localStorage.setItem("yearMonth", data.maxYearMonth);
+  
+            // Optional: handle info message from backend
+            if (data.message) {
+              console.info(data.message); // or show in UI as a toast
+            }
+          } else {
+            console.warn("No YearMonth value returned in response.");
+          }
         } else {
           console.error("Failed to fetch YearMonth data");
         }
@@ -66,11 +81,13 @@ export default function Dashboard() {
         console.error("Error fetching YearMonth data:", error);
       }
     };
-
-    if (projectId) {
+  
+    if (projectId && role) {
       fetchYearMonth();
     }
-  }, [projectId]);
+  }, [projectId, role]);
+  
+  
 
   const handleLogout = () => {
     logout();
