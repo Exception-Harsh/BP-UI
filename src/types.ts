@@ -29,67 +29,12 @@ export interface LoginResponse {
 }
 
 export interface AssetSale {
+  [key: string]: any;
   yearMonth: string;
   projectNumber: string;
   assetNumber: string;
   phase: string;
   building: string;
-  floor: string;
-  unitNumber: string;
-  unitConfiguration: string;
-  unitType: string;
-  saleableArea: number;
-  carpetArea: number;
-  carpetAreaRR: number;
-  uniqueUnitNumber: string;
-  owner: string;
-  soldFlag: string;
-  registeredFlag: string;
-  registrationDate: string | null;
-  bookingDate: string | null;
-  allotmentLetterDate: string | null;
-  agreementDate: string | null;
-  customerName: string;
-  customerKycAadhar: string;
-  customerKycPan: string;
-  customerKycMobile: string;
-  customerKycEmail: string;
-  customerKycAddress: string;
-  ncIssuedFlag: string;
-  ncNumber: string;
-  salesBasePrice: number;
-  salesStampDutyAmount: number;
-  salesRegistrationAmount: number;
-  salesOtherCharges: number;
-  salesPassThroughCharges: number;
-  salesTaxesAmount: number;
-  salesTotalAmount: number;
-  demandBasePrice: number;
-  demandStampDuty: number;
-  demandRegistrationAmount: number;
-  demandOtherCharges: number;
-  demandPassThroughCharges: number;
-  demandTaxesAmount: number;
-  demandTotalAmount: number;
-  receivedBasePrice: number;
-  receivedStampDutyAmount: number;
-  receivedRegistrationAmount: number;
-  receivedOtherCharges: number;
-  receivedPassThroughCharges: number;
-  receivedTaxesAmount: number;
-  receivedTotalAmount: number;
-  modeOfFinance: string;
-  financialInstitutionName: string;
-  paymentPlanName: string;
-  sourceOfCustomer: string;
-  channelPartnerName: string;
-  channelPartnerMobile: string;
-  channelPartnerEmail: string;
-  brokerageAmount: number;
-}
-
-export interface newAssetSale {
-  [key: string]: any;
   floor: string;
   unitNumber: string;
   unitConfiguration: string;

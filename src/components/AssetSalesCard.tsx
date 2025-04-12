@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { newAssetSale } from "../types";
+import { AssetSale } from "../types";
 import endpoints from "../endpoints";
 
 // Define an interface for the column names mapping
@@ -12,7 +12,7 @@ export default function AssetSalesComponent({
 }: {
   isDarkMode: boolean;
 }) {
-  const [data, setData] = useState<newAssetSale[]>([]);
+  const [data, setData] = useState<AssetSale[]>([]);
   const [buildings, setBuildings] = useState<string[]>([]);
   const [selectedBuilding, setSelectedBuilding] = useState<string>("");
   const [unitNumbers, setUnitNumbers] = useState<string[]>([]);
@@ -37,21 +37,21 @@ export default function AssetSalesComponent({
     Floor: "Floor",
     SalesBasePrice: "Base Price",
     SalesStampDutyAmount: "Stamp Duty",
-    SalesRegistrationAmount: "Registration Amount",
+    SalesRegistrationAmount: "Registration",
     SalesOtherCharges: "Other Charges",
-    SalesPassThroughCharges: "Pass-Through Charges",
+    SalesPassThroughCharges: "Pass-Through",
     SalesTaxesAmount: "Taxes",
     DemandBasePrice: "Base Price",
     DemandStampDuty: "Stamp Duty",
-    DemandRegistrationAmount: "Registration Amount",
+    DemandRegistrationAmount: "Registration",
     DemandOtherCharges: "Other Charges",
-    DemandPassThroughCharges: "Pass-Through Charges",
+    DemandPassThroughCharges: "Pass-Through",
     DemandTaxesAmount: "Taxes",
     ReceivedBasePrice: "Base Price",
     ReceivedStampDutyAmount: "Stamp Duty",
-    ReceivedRegistrationAmount: "Registration Amount",
+    ReceivedRegistrationAmount: "Registration",
     ReceivedOtherCharges: "Other Charges",
-    ReceivedPassThroughCharges: "Pass-Through Charges",
+    ReceivedPassThroughCharges: "Pass-Through",
     ReceivedTaxesAmount: "Taxes",
     RegistrationDate: "Registration Date",
     CustomerName: "Name",
@@ -202,15 +202,6 @@ export default function AssetSalesComponent({
         console.log("API Response (Data):", fetchedData);
         if (Array.isArray(fetchedData.data)) {
           setData(fetchedData.data);
-          // Store uniqueUnitNumber in localStorage as an array
-          const uniqueUnitNumbers = fetchedData.data.map(
-            (row: { uniqueUnitNumber: any }) => row.uniqueUnitNumber
-          );
-          console.log("Storing uniqueUnitNumbers:", uniqueUnitNumbers);
-          localStorage.setItem(
-            `uniqueUnitNumbers_${projectNumber}_${yearMonth}_${selectedBuilding}`,
-            JSON.stringify(uniqueUnitNumbers)
-          );
         } else {
           console.error("Unexpected API response format:", fetchedData);
           setData([]);
@@ -380,59 +371,26 @@ export default function AssetSalesComponent({
   const handleSubmit = async () => {
     setUpdateStatus("Updating...");
 
-    let allUpdatesSuccessful = true;
-    const uniqueUnitNumbers = JSON.parse(
-      localStorage.getItem(
-        `uniqueUnitNumbers_${projectNumber}_${yearMonth}_${selectedBuilding}`
-      ) || "[]"
-    );
-
-    console.log("Retrieved uniqueUnitNumbers:", uniqueUnitNumbers);
-
-    for (const assetSale of data) {
-      const uniqueUnitNumber = uniqueUnitNumbers.find(
-        (num: string) => num === assetSale.uniqueUnitNumber
-      );
-      if (!uniqueUnitNumber) {
-        console.error(
-          `Unique Unit Number not found for asset sale:`,
-          assetSale
-        );
-        allUpdatesSuccessful = false;
-        continue;
-      }
-
-      try {
-        const response = await fetch(
-          `${endpoints.update}/${projectNumber}/${yearMonth}/${selectedBuilding}/${uniqueUnitNumber}`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(assetSale),
-          }
-        );
-
-        if (!response.ok) {
-          console.error(
-            `Failed to update asset sale for Unit Number: ${assetSale.uniqueUnitNumber}`
-          );
-          allUpdatesSuccessful = false;
-        } else {
-          const result = await response.json();
-          console.log(
-            `Update successful for Unit Number: ${assetSale.uniqueUnitNumber}`,
-            result
-          );
+    try {
+      const response = await fetch(
+        `${endpoints.update}${projectNumber}/${yearMonth}/${selectedBuilding}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
         }
-      } catch (error) {
-        console.error("Error updating asset sales:", error);
-        allUpdatesSuccessful = false;
-      }
-    }
+      );
 
-    if (allUpdatesSuccessful) {
-      setUpdateStatus("All updates successful!");
-    } else {
+      if (!response.ok) {
+        console.error("Failed to update asset sales");
+        setUpdateStatus("Update failed. Please try again.");
+      } else {
+        const result = await response.json();
+        console.log("Update successful", result);
+        setUpdateStatus("All updates successful!");
+      }
+    } catch (error) {
+      console.error("Error updating asset sales:", error);
       setUpdateStatus("Some updates failed. Check console for details.");
     }
   };
@@ -1029,7 +987,7 @@ export default function AssetSalesComponent({
                             <span className="text-red-700">*</span>
                           </label>
                           <input
-                            type="number"
+                            type="text"
                             min="0"
                             value={row[colName] || ""}
                             onChange={(e) =>
