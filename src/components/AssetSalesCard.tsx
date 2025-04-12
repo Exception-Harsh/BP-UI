@@ -26,6 +26,7 @@
 //   const [updateStatus, setUpdateStatus] = useState<string | null>(null);
 //   const [yearMonth, setYearMonth] = useState<string>("");
 //   const [projectNumber, setProjectNumber] = useState<string | null>(null);
+//   const [updatedRows, setUpdatedRows] = useState<AssetSale[]>([]);
 //   const userRole = localStorage.getItem("role");
 
 //   const columnNames: ColumnNames = {
@@ -354,6 +355,12 @@
 
 //     // Update the state with the new data
 //     setData(updatedData);
+
+//     // Track the updated row
+//     if (!updatedRows.includes(updatedData[index])) {
+//       setUpdatedRows([...updatedRows, updatedData[index]]);
+//     }
+
 //     setUpdateStatus(null); // Clear any previous status when editing starts
 //   };
 
@@ -377,7 +384,7 @@
 //         {
 //           method: "POST",
 //           headers: { "Content-Type": "application/json" },
-//           body: JSON.stringify(data),
+//           body: JSON.stringify(updatedRows),
 //         }
 //       );
 
@@ -388,6 +395,7 @@
 //         const result = await response.json();
 //         console.log("Update successful", result);
 //         setUpdateStatus("All updates successful!");
+//         setUpdatedRows([]); // Clear the updated rows after successful update
 //       }
 //     } catch (error) {
 //       console.error("Error updating asset sales:", error);
@@ -1124,6 +1132,7 @@ export default function AssetSalesComponent({
   const [yearMonth, setYearMonth] = useState<string>("");
   const [projectNumber, setProjectNumber] = useState<string | null>(null);
   const [updatedRows, setUpdatedRows] = useState<AssetSale[]>([]);
+  const [inputErrors, setInputErrors] = useState<{ [key: string]: string }>({});
   const userRole = localStorage.getItem("role");
 
   const columnNames: ColumnNames = {
@@ -1399,6 +1408,35 @@ export default function AssetSalesComponent({
     }
 
     // Validate input values
+    if (
+      key.includes("BasePrice") ||
+      key.includes("StampDuty") ||
+      key.includes("RegistrationAmount") ||
+      key.includes("OtherCharges") ||
+      key.includes("PassThroughCharges") ||
+      key.includes("TaxesAmount") ||
+      key.includes("BrokerageAmount")
+    ) {
+      const inputStr = value.toString().trim();
+const isAlpha = /[a-zA-Z]/.test(inputStr);
+const isEmpty = inputStr === "";
+
+if (isAlpha) {
+  setInputErrors((prevErrors) => ({
+    ...prevErrors,
+    [`${index}-${key}`]: "Enter numeric values",
+  }));
+  updatedData[index][key] = "";
+  return;
+} else {
+  setInputErrors((prevErrors) => {
+    const { [`${index}-${key}`]: _, ...rest } = prevErrors;
+    return rest;
+  });
+}
+
+    }
+
     if (key.includes("BasePrice")) {
       const basePrice = parseFloat(value as string);
       const stampDutyKey = key.replace("BasePrice", "StampDutyAmount");
@@ -1461,6 +1499,12 @@ export default function AssetSalesComponent({
     setUpdateStatus(null); // Clear any previous status when editing starts
   };
 
+  const formatAmount = (amount: number | string) => {
+    if (!amount || parseFloat(amount as string) === 0) return "";
+    return parseFloat(amount as string).toLocaleString('en-IN');
+  };
+  
+
   const calculateTotal = (row: any, prefix: string) => {
     const basePrice = parseFloat(row[`${prefix}BasePrice`]) || 0;
     const stampDuty = parseFloat(row[`${prefix}StampDutyAmount`]) || 0;
@@ -1517,7 +1561,7 @@ export default function AssetSalesComponent({
 
   return (
     <div
-      className={`p-6 shadow-lg rounded-lg ${
+      className={`p-6 shadow-lg rounded-lg relative ${
         isDarkMode ? "bg-gray-900 text-white" : "bg-white text-black"
       }`}
     >
@@ -1699,21 +1743,13 @@ export default function AssetSalesComponent({
                           )}
                         </label>
                         <input
-                          type="number"
-                          min="0"
-                          value={row[colName] || ""}
-                          max={
-                            colName === "SalesStampDutyAmount"
-                              ? row["SalesBasePrice"]
-                              : colName === "SalesRegistrationAmount"
-                              ? row["SalesStampDutyAmount"]
-                              : undefined
-                          }
+                          type="text"
+                          value={formatAmount(row[colName])}
                           onChange={(e) =>
                             handleChange(
                               rowIndex,
                               colName,
-                              Math.max(0, parseFloat(e.target.value)).toString()
+                              e.target.value.replace(/,/g, '')
                             )
                           }
                           required={[
@@ -1723,10 +1759,15 @@ export default function AssetSalesComponent({
                           ].includes(colName)}
                           className="p-1 border rounded"
                         />
+                        {inputErrors[`${rowIndex}-${colName}`] && (
+                          <span className="text-red-500 text-xs">
+                            {inputErrors[`${rowIndex}-${colName}`]}
+                          </span>
+                        )}
                       </div>
                     ))}
                     <span className="font-bold self-center">
-                      Total: {salesTotal.toFixed(2)}
+                      Total: {formatAmount(salesTotal.toFixed(2))}
                     </span>
                   </div>
                 </div>
@@ -1748,29 +1789,26 @@ export default function AssetSalesComponent({
                           {columnNames[colName]}:
                         </label>
                         <input
-                          type="number"
-                          min="0"
-                          value={row[colName] || ""}
-                          max={
-                            colName === "DemandStampDuty"
-                              ? row["DemandBasePrice"]
-                              : colName === "DemandRegistrationAmount"
-                              ? row["DemandStampDuty"]
-                              : undefined
-                          }
+                          type="text"
+                          value={formatAmount(row[colName])}
                           onChange={(e) =>
                             handleChange(
                               rowIndex,
                               colName,
-                              Math.max(0, parseFloat(e.target.value)).toString()
+                              e.target.value.replace(/,/g, '')
                             )
                           }
                           className="p-1 border rounded"
                         />
+                        {inputErrors[`${rowIndex}-${colName}`] && (
+                          <span className="text-red-500 text-xs">
+                            {inputErrors[`${rowIndex}-${colName}`]}
+                          </span>
+                        )}
                       </div>
                     ))}
                     <span className="font-bold self-center">
-                      Total: {demandTotal.toFixed(2)}
+                      Total: {formatAmount(demandTotal.toFixed(2))}
                     </span>
                   </div>
                 </div>
@@ -1792,29 +1830,26 @@ export default function AssetSalesComponent({
                           {columnNames[colName]}:
                         </label>
                         <input
-                          type="number"
-                          min="0"
-                          value={row[colName] || ""}
-                          max={
-                            colName === "ReceivedStampDutyAmount"
-                              ? row["ReceivedBasePrice"]
-                              : colName === "ReceivedRegistrationAmount"
-                              ? row["ReceivedStampDutyAmount"]
-                              : undefined
-                          }
+                          type="text"
+                          value={formatAmount(row[colName])}
                           onChange={(e) =>
                             handleChange(
                               rowIndex,
                               colName,
-                              Math.max(0, parseFloat(e.target.value)).toString()
+                              e.target.value.replace(/,/g, '')
                             )
                           }
                           className="p-1 border rounded"
                         />
+                        {inputErrors[`${rowIndex}-${colName}`] && (
+                          <span className="text-red-500 text-xs">
+                            {inputErrors[`${rowIndex}-${colName}`]}
+                          </span>
+                        )}
                       </div>
                     ))}
                     <span className="font-bold self-center">
-                      Total: {receivedTotal.toFixed(2)}
+                      Total: {formatAmount(receivedTotal.toFixed(2))}
                     </span>
                   </div>
                 </div>
@@ -2093,13 +2128,12 @@ export default function AssetSalesComponent({
                           </label>
                           <input
                             type="text"
-                            min="0"
                             value={row[colName] || ""}
                             onChange={(e) =>
                               handleChange(
                                 rowIndex,
                                 colName,
-                                Math.max(0, parseFloat(e.target.value)).toString()
+                                e.target.value
                               )
                             }
                             required
@@ -2138,14 +2172,13 @@ export default function AssetSalesComponent({
                       {columnNames["BrokerageAmount"]}:
                     </label>
                     <input
-                      type="number"
-                      min="0"
-                      value={row.BrokerageAmount || ""}
+                      type="text"
+                      value={formatAmount(row.BrokerageAmount)}
                       onChange={(e) =>
                         handleChange(
                           rowIndex,
                           "BrokerageAmount",
-                          Math.max(0, parseFloat(e.target.value)).toString()
+                          e.target.value.replace(/,/g, '')
                         )
                       }
                       className={`p-1 border rounded ${
@@ -2153,6 +2186,11 @@ export default function AssetSalesComponent({
                       }`}
                       required
                     />
+                    {inputErrors[`${rowIndex}-BrokerageAmount`] && (
+                      <span className="text-red-500 text-xs">
+                        {inputErrors[`${rowIndex}-BrokerageAmount`]}
+                      </span>
+                    )}
                   </div>
                 </div>
               </>
@@ -2161,18 +2199,24 @@ export default function AssetSalesComponent({
         );
       })}
 
-      {/* Save Button for Borrower Role */}
+      {/* Sticky Save and Submit Buttons for Borrower Role */}
       {userRole === "Borrower" && (
-        <div className="mt4">
+        <div
+          className="flex justify-center items-center mt-4 p-4  border-t sticky bottom-0 left-0 right-0 h-12"
+          style={{
+            backgroundColor: isDarkMode ? "#1f2937" : "#ffffff",
+            zIndex: 10,
+          }}
+        >
           <button
             onClick={handleSubmit}
-            className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mr-4"
+            className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-5 rounded mr-4"
           >
             Save
           </button>
           <button
             onClick={handleSubmitApproval}
-            className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+            className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded"
           >
             Submit
           </button>
@@ -2181,7 +2225,13 @@ export default function AssetSalesComponent({
 
       {/* Approve and Reject Buttons for Arbour or PME roles */}
       {(userRole === "Arbour" || userRole === "PME") && (
-        <div className="mt-4">
+        <div
+          className="flex justify-between items-center mt-4 p-4 bg-white border-t sticky bottom-0 left-0 right-0"
+          style={{
+            backgroundColor: isDarkMode ? "#1f2937" : "#ffffff",
+            zIndex: 10,
+          }}
+        >
           <button
             onClick={handleApprove}
             className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded mr-2"
