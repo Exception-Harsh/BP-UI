@@ -28,6 +28,23 @@ const menuItems = [
   { id: "approval", label: "Approval", icon: CheckCircle2 },
 ];
 
+const monthNames = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December"
+];
+
+const formatYearMonth = (yearMonth: string | any[]) => {
+  if (typeof yearMonth !== 'string') {
+    console.error("yearMonth is not a string:", yearMonth);
+    return "";
+  }
+
+  const year = yearMonth.slice(0, 4);
+  const month = yearMonth.slice(4, 6);
+  return `${monthNames[parseInt(month, 10) - 1]} ${year}`;
+};
+
+
 export default function Dashboard() {
   const logo = new URL("../assets/logo.png", import.meta.url).href;
   const [isMenuOpen, setIsMenuOpen] = useState(true);
@@ -57,7 +74,7 @@ export default function Dashboard() {
         const response = await fetch(endpoints.yearmonth + `${projectId}/${role}`);
         if (response.ok) {
           const data = await response.json();
-  
+
           if (data.nextYearMonth) {
             // Insert occurred, use the new inserted month
             setYearMonth(data.nextYearMonth);
@@ -66,7 +83,7 @@ export default function Dashboard() {
             // No insert, use existing max
             setYearMonth(data.maxYearMonth);
             localStorage.setItem("yearMonth", data.maxYearMonth);
-  
+
             // Optional: handle info message from backend
             if (data.message) {
               console.info(data.message); // or show in UI as a toast
@@ -81,13 +98,11 @@ export default function Dashboard() {
         console.error("Error fetching YearMonth data:", error);
       }
     };
-  
+
     if (projectId && role) {
       fetchYearMonth();
     }
   }, [projectId, role]);
-  
-  
 
   const handleLogout = () => {
     logout();
@@ -143,17 +158,18 @@ export default function Dashboard() {
           <main className="p-6">
             <div className={`rounded-lg shadow p-6 ${isDarkMode ? "bg-gray-800 text-white" : "bg-white text-black"}`}>
               <h2 className="text-xl font-semibold mb-4">{menuItems.find((item) => item.id === activeSection)?.label}</h2>
-              {activeSection === "sales" ? (
+              {activeSection === "sales" && (
                 <>
-                  <AssetSalesComponent isDarkMode={isDarkMode} />
                   {yearMonth && (
-                    <div className="mt-4">
-                      <h3 className="text-lg font-semibold">Year-Month:</h3>
-                      <p>{yearMonth}</p>
+                    <div className="mt-4 flex gap-2">
+                      <h3 className="text-lg font-semibold">Year-Month: {formatYearMonth(yearMonth)}</h3>
+                    
                     </div>
                   )}
+                  <AssetSalesComponent isDarkMode={isDarkMode} />
                 </>
-              ) : (
+              )}
+              {activeSection !== "sales" && (
                 <p>Displaying {menuItems.find((item) => item.id === activeSection)?.label} information for Project {projectId}</p>
               )}
             </div>
