@@ -5,7 +5,8 @@ const endpoints = {
     sales: domain + "/assetsales/",
     login: domain + "/login",
     update: domain + "/assetsales/update/",
-    yearmonth: domain + "/assetsales/nextyearmonth/"
+    yearmonth: domain + "/assetsales/nextyearmonth/",
+    workflow: domain + "/assetsales/workflow/"
 };
 
 export default endpoints;

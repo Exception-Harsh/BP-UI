@@ -1106,6 +1106,7 @@
 import { useState, useEffect } from "react";
 import { AssetSale } from "../types";
 import endpoints from "../endpoints";
+import { ApprovalWorkflow } from "../types";
 
 // Define an interface for the column names mapping
 interface ColumnNames {
@@ -1544,20 +1545,132 @@ if (isAlpha) {
     }
   };
 
-  const handleSubmitApproval = () => {
-    // Placeholder for approve functionality
-    console.log("Submit button clicked");
+  const handleSubmitApproval = async () => {
+    if (!projectNumber || !yearMonth) {
+      console.error("Project number or year-month is missing.");
+      return;
+    }
+  
+    // Get the username from localStorage
+    const credentials = localStorage.getItem("rememberedCredentials");
+    const parsedCredentials = credentials ? JSON.parse(credentials) : null;
+    const username = parsedCredentials?.username ?? "";
+  
+    const requestBody: ApprovalWorkflow = {
+      statusFlag: '0', // Borrower role always sends 0
+      workflowComment: "", // Optional comment
+      username: username,
+    };
+  
+    try {
+      const response = await fetch(
+        `${endpoints.workflow}${projectNumber}/${yearMonth}/Borrower`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(requestBody),
+        }
+      );
+  
+      if (!response.ok) {
+        console.error("Failed to submit approval workflow");
+        setUpdateStatus("Submit failed. Please try again.");
+      } else {
+        const result = await response.json();
+        console.log("Submit successful", result);
+        setUpdateStatus("Submit successful!");
+      }
+    } catch (error) {
+      console.error("Error submitting approval workflow:", error);
+      setUpdateStatus("Submit failed. Check console for details.");
+    }
   };
+  
+  
 
-  const handleApprove = () => {
-    // Placeholder for approve functionality
-    console.log("Approve button clicked");
+  const handleApprove = async () => {
+    if (!projectNumber || !yearMonth) {
+      console.error("Project number or year-month is missing.");
+      return;
+    }
+  
+    // Get the remembered credentials object from localStorage
+    const credentials = localStorage.getItem("rememberedCredentials");
+    const parsedCredentials = credentials ? JSON.parse(credentials) : null;
+    const username = parsedCredentials?.username ?? ""; // fallback to empty string if not available
+  
+    const requestBody: ApprovalWorkflow = {
+      statusFlag: 'A',
+      workflowComment: "Approved by PME/Arbour",
+      username: username,
+    };
+  
+    try {
+      const response = await fetch(
+        `${endpoints.workflow}${projectNumber}/${yearMonth}/${userRole}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(requestBody),
+        }
+      );
+  
+      if (!response.ok) {
+        console.error("Failed to approve workflow");
+        setUpdateStatus("Approval failed. Please try again.");
+      } else {
+        const result = await response.json();
+        console.log("Approval successful", result);
+        setUpdateStatus("Approval successful!");
+      }
+    } catch (error) {
+      console.error("Error approving workflow:", error);
+      setUpdateStatus("Approval failed. Check console for details.");
+    }
   };
+  
 
-  const handleReject = () => {
-    // Placeholder for reject functionality
-    console.log("Reject button clicked");
-  };
+  const handleReject = async () => {
+    if (!projectNumber || !yearMonth) {
+      console.error("Project number or year-month is missing.");
+      return;
+    }
+  
+    // Get the username from localStorage
+    const credentials = localStorage.getItem("rememberedCredentials");
+    const parsedCredentials = credentials ? JSON.parse(credentials) : null;
+    const username = parsedCredentials?.username ?? "";
+  
+    // Create an instance of ApprovalWorkflow for rejection
+    const requestBody: ApprovalWorkflow = {
+      statusFlag: 'R', // Indicates rejection
+      workflowComment: "Rejected by PME/Arbour",
+      username: username,
+    };
+  
+    try {
+      const response = await fetch(
+        `${endpoints.workflow}${projectNumber}/${yearMonth}/${userRole}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(requestBody),
+        }
+      );
+  
+      if (!response.ok) {
+        console.error("Failed to reject workflow");
+        setUpdateStatus("Rejection failed. Please try again.");
+      } else {
+        const result = await response.json();
+        console.log("Rejection successful", result);
+        setUpdateStatus("Rejection successful!");
+      }
+    } catch (error) {
+      console.error("Error rejecting workflow:", error);
+      setUpdateStatus("Rejection failed. Check console for details.");
+    }
+  };  
 
   return (
     <div

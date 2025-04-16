@@ -89,6 +89,12 @@ export interface AssetSale {
   brokerageAmount: number;
 }
 
+export interface ApprovalWorkflow {
+  statusFlag: string;
+  workflowComment: string;
+  username: string;
+}
+
 export interface DisbursementRequestDto {
   PadrDrNmbrN: number;
   PadrPrjctNmbrN: number;
