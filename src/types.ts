@@ -144,3 +144,8 @@ export interface FileDataStorageBlobDto {
   FdsbFlTypV: string;
   FdsbFlB: Uint8Array; // Using Uint8Array for byte array
 }
+
+export interface ProjectHeader {
+  remarks: string;
+  userName: string;
+}

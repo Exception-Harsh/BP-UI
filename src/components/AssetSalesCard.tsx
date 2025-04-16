@@ -114,57 +114,6 @@ export default function AssetSalesComponent({
       });
   }, [projectNumber, yearMonth]);
 
-  // Fetch filters data when a building is selected
-  useEffect(() => {
-    if (!projectNumber || !selectedBuilding || !yearMonth) {
-      return;
-    }
-
-    const url = `${endpoints.sales}filters/${projectNumber}/${yearMonth}/${selectedBuilding}`;
-    console.log("Fetching filters data from:", url);
-
-    fetch(url)
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error(`HTTP error! Status: ${response.status}`);
-        }
-        return response.json();
-      })
-      .then((fetchedData) => {
-        console.log("API Response (Filters):", fetchedData);
-        if (fetchedData.unitNumbers && Array.isArray(fetchedData.unitNumbers)) {
-          setUnitNumbers(fetchedData.unitNumbers);
-        } else {
-          console.error("Unexpected API response format:", fetchedData);
-          setUnitNumbers([]);
-        }
-        if (
-          fetchedData.unitConfigurations &&
-          Array.isArray(fetchedData.unitConfigurations)
-        ) {
-          setUnitConfigurations(fetchedData.unitConfigurations);
-        } else {
-          console.error("Unexpected API response format:", fetchedData);
-          setUnitConfigurations([]);
-        }
-        if (
-          fetchedData.customerNames &&
-          Array.isArray(fetchedData.customerNames)
-        ) {
-          setCustomerNames(fetchedData.customerNames);
-        } else {
-          console.error("Unexpected API response format:", fetchedData);
-          setCustomerNames([]);
-        }
-      })
-      .catch((error) => {
-        console.error("Error fetching filters data:", error);
-        setUnitNumbers([]);
-        setUnitConfigurations([]);
-        setCustomerNames([]);
-      });
-  }, [projectNumber, selectedBuilding, yearMonth]);
-
   useEffect(() => {
     if (!projectNumber || !selectedBuilding || !yearMonth) {
       return;

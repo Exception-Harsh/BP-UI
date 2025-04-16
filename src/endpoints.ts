@@ -6,7 +6,9 @@ const endpoints = {
     login: domain + "/login",
     update: domain + "/assetsales/update/",
     yearmonth: domain + "/assetsales/nextyearmonth/",
-    workflow: domain + "/assetsales/workflow/"
+    workflow: domain + "/assetsales/workflow/",
+    projectheader: domain + "assetsales/hdr/",
+    updateProjecthdr: domain + "assetsales/updatehdr"
 };
 
 export default endpoints;
