@@ -184,6 +184,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import AssetSalesComponent from "./AssetSalesCard";
+import endpoints from "../endpoints";
 import {
   Tags,
   ShoppingCart,
@@ -198,19 +199,6 @@ import {
   Moon,
   Menu,
 } from "lucide-react";
-
-const domain = "https://localhost:44341/api";
-
-const endpoints = {
-  project: domain + "/project",
-  sales: domain + "/assetsales/",
-  login: domain + "/login",
-  update: domain + "/assetsales/update/",
-  yearmonth: domain + "/assetsales/nextyearmonth/",
-  workflow: domain + "/assetsales/workflow/",
-  projectheader: domain + "/assetsales/hdr/",
-  updateProjecthdr: domain + "/assetsales/updatehdr"
-};
 
 const menuItems = [
   { id: "sales", label: "Sales Data", icon: Tags },
