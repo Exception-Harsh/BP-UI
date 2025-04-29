@@ -32,7 +32,7 @@ export interface AssetSale {
   [key: string]: any;
   yearMonth: string;
   projectNumber: string;
-  assetNumber: string;
+  assetNumber: number;
   phase: string;
   building: string;
   floor: string;
@@ -95,47 +95,44 @@ export interface ApprovalWorkflow {
   username: string;
 }
 
-export interface DisbursementRequestDto {
-  PadrDrNmbrN: number;
-  PadrPrjctNmbrN: number;
-  PadrAsstNmbrN: number;
-  PadrCtgryV: string;
-  PadrSbCtgryV: string;
-  PadrPrtyNmV: string;
-  PadrPrtyGstnV: string;
-  PadrPrtyPanV: string;
-  PadrPrtyEmlV: string;
-  PadrPrtyMblV: string;
-  PadrRsnV: string;
-  PadrPoWoV: string;
-  PadrTtlOrdrAmntN: number;
-  PadrDcmntTypV: string;
-  PadrPrtyDcmntNmbrV: string;
-  PadrPrtyDcmntDtD: Date;
-  PadrPrtyDcmntPyblDysN: number;
-  PadrPrtyDcmntAmntN: number;
-  PadrPrtyDcmntGstAmntN: number;
-  PadrPrtyDcmntTtlAmntN: number;
-  PadrPrtyTdsAmntN: number;
-  PadrPrtyAdvncAdjstdN: number;
-  PadrPrtyRtntnAmntN: number;
-  PadrPrtyOthrDdctnAmntN: number;
-  PadrPrtyPyblAmntN: number;
-  PadrPrtyOtstndngAmntN: number;
-  PadrBrrwrAccntNmbrV: string;
-  PadrPrtyBnkNmV: string;
-  PadrPrtyAccntNmV: string;
-  PadrPrtyAccntNmbrV: string;
-  PadrPrtyAccntIfscV: string;
-  PadrSttsC: string;
-  PadrApprvdAmntN: number;
-  PadrRfrncDrNmbrN: number;
-  PadrRmrksV: string;
-
-  // File attachment properties
-  AttachmentFileName: string;
-  AttachmentContentType: string;
-  Attachment: Blob; // Assuming Blob is used for file attachments
+export interface NewDisbursementRequest {
+  ProjectNumber: number;
+  AssetNumber: number;
+  Category: string;
+  SubCategory: string;
+  PartyName: string;
+  PartyGSTIN?: string;
+  PartyPAN?: string;
+  PartyEmail?: string;
+  PartyMobile?: string;
+  Reason: string;
+  PurchaseOrder?: string;
+  TotalOrderAmount?: number;
+  DocumentType?: string;
+  PartyDocumentNumber?: string;
+  PartyDocumentDate: Date;
+  PartyDocumentPayableDays?: number;
+  PartyDocumentAmount: number;
+  PartyDocumentGSTAmount: number;
+  PartyDocumentTotalAmount: number;
+  PartyTDSAmount?: number;
+  PartyAdvanceAdjusted?: number;
+  PartyRetentionAmount?: number;
+  PartyOtherDeductionAmount?: number;
+  PartyPayableAmount: number;
+  PartyOutstandingAmount: number;
+  BorrowerAccountNumber: string;
+  PartyBankName: string;
+  PartyAccountName: string;
+  PartyAccountNumber: string;
+  PartyAccountIFSC: string;
+  Status: string;
+  ApprovedAmount: number;
+  ReferenceDRNumber?: number;
+  Remarks?: string;
+  AttachmentReference?: string;
+  CreatedBy: string;
+  LastModifiedBy: string;
 }
 
 export interface FileDataStorageBlobDto {
