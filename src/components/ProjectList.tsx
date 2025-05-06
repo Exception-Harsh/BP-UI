@@ -50,6 +50,7 @@ export default function ProjectListComponent() {
           projectName: proj.ProjectName,
           totalIRR: proj.TotalIRR,
           borrowerIRR: proj.BorrowerIRR,
+          mspApplicable: proj.MspApplicable,
         }));
 
         console.log("Mapped Projects:", mappedProjects); // ✅ Debugging: Check processed data
@@ -138,6 +139,9 @@ export default function ProjectListComponent() {
               </p>
               <p className={`${isDarkMode ? "text-white" : "text-black"}`}>
                 Borrower IRR: {project.borrowerIRR}
+              </p>
+              <p className={`${isDarkMode ? "text-white" : "text-black"}`}>
+                MSP Applicable: {project.mspApplicable}
               </p>
             </div>
           ))}

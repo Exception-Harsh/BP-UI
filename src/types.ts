@@ -15,6 +15,7 @@ export interface Project {
     projectNumber: string;
     totalIRR: number;
     borrowerIRR: number;
+    mspApplicable: string;
 }
 
 export interface UserCheckResult {
@@ -32,7 +33,7 @@ export interface AssetSale {
   [key: string]: any;
   yearMonth: string;
   projectNumber: string;
-  assetNumber: number;
+  assetNumber: string;
   phase: string;
   building: string;
   floor: string;
@@ -95,9 +96,59 @@ export interface ApprovalWorkflow {
   username: string;
 }
 
+export interface DisbursementRequestDto {
+  PadrDrNmbrN: number;
+  PadrPrjctNmbrN: number;
+  PadrAsstNmbrN: number;
+  PadrCtgryV: string;
+  PadrSbCtgryV: string;
+  PadrPrtyNmV: string;
+  PadrPrtyGstnV: string;
+  PadrPrtyPanV: string;
+  PadrPrtyEmlV: string;
+  PadrPrtyMblV: string;
+  PadrRsnV: string;
+  PadrPoWoV: string;
+  PadrTtlOrdrAmntN: number;
+  PadrDcmntTypV: string;
+  PadrPrtyDcmntNmbrV: string;
+  PadrPrtyDcmntDtD: Date;
+  PadrPrtyDcmntPyblDysN: number;
+  PadrPrtyDcmntAmntN: number;
+  PadrPrtyDcmntGstAmntN: number;
+  PadrPrtyDcmntTtlAmntN: number;
+  PadrPrtyTdsAmntN: number;
+  PadrPrtyAdvncAdjstdN: number;
+  PadrPrtyRtntnAmntN: number;
+  PadrPrtyOthrDdctnAmntN: number;
+  PadrPrtyPyblAmntN: number;
+  PadrPrtyOtstndngAmntN: number;
+  PadrBrrwrAccntNmbrV: string;
+  PadrPrtyBnkNmV: string;
+  PadrPrtyAccntNmV: string;
+  PadrPrtyAccntNmbrV: string;
+  PadrPrtyAccntIfscV: string;
+  PadrSttsC: string;
+  PadrApprvdAmntN: number;
+  PadrRfrncDrNmbrN: number;
+  PadrRmrksV: string;
+  PadrAttchmntRfrncV: string;
+
+  // File attachment properties
+  // AttachmentFileName: string;
+  // AttachmentContentType: string;
+  // Attachment: Blob; // Assuming Blob is used for file attachments
+
+  CoinCrtnUsrIdV: string, // New field
+  CoinCrtnDtD: Date, // New field
+  CoinLstMdfdUsrIdV: string, // New field
+  CoinLstMdfdDtD: Date, // New field
+}
+
+// types.ts
 export interface NewDisbursementRequest {
-  ProjectNumber: number;
-  AssetNumber: number;
+  ProjectNumber: string | number;
+  AssetNumber: string;
   Category: string;
   SubCategory: string;
   PartyName: string;
@@ -107,32 +158,33 @@ export interface NewDisbursementRequest {
   PartyMobile?: string;
   Reason: string;
   PurchaseOrder?: string;
-  TotalOrderAmount?: number;
+  TotalOrderAmount?: string | number;
   DocumentType?: string;
   PartyDocumentNumber?: string;
-  PartyDocumentDate: Date;
-  PartyDocumentPayableDays?: number;
-  PartyDocumentAmount: number;
-  PartyDocumentGSTAmount: number;
-  PartyDocumentTotalAmount: number;
-  PartyTDSAmount?: number;
-  PartyAdvanceAdjusted?: number;
-  PartyRetentionAmount?: number;
-  PartyOtherDeductionAmount?: number;
-  PartyPayableAmount: number;
-  PartyOutstandingAmount: number;
+  PartyDocumentDate?: string;
+  PartyDocumentPayableDays?: string | number;
+  PartyDocumentAmount: string | number;
+  PartyDocumentGSTAmount: string | number;
+  PartyDocumentTotalAmount?: string | number;
+  PartyTDSAmount?: string | number;
+  PartyAdvanceAdjusted?: string | number;
+  PartyRetentionAmount?: string | number;
+  PartyOtherDeductionAmount?: string | number;
+  PartyPayableAmount: string | number;
+  PartyOutstandingAmount: string | number;
   BorrowerAccountNumber: string;
   PartyBankName: string;
   PartyAccountName: string;
   PartyAccountNumber: string;
   PartyAccountIFSC: string;
   Status: string;
-  ApprovedAmount: number;
-  ReferenceDRNumber?: number;
+  ApprovedAmount: string | number;
+  ReferenceDRNumber?: string | number;
   Remarks?: string;
-  AttachmentReference?: string;
+  AttachmentReference: string;
   CreatedBy: string;
   LastModifiedBy: string;
+  Attachments: { file: File; name: string; type: string }[];
 }
 
 export interface FileDataStorageBlobDto {

@@ -2,12 +2,74 @@ import React, { useState, useEffect } from 'react';
 import { NewDisbursementRequest } from '../types';
 import axios from 'axios';
 import endpoints from '../endpoints';
+import { FaFilePdf, FaFileExcel, FaFile } from 'react-icons/fa';
+import { IoClose, IoCheckmarkCircle, IoCloseCircle } from 'react-icons/io5';
+
+interface Building {
+  asm_bldng_v: string;
+  asm_asst_nmbr_n: string;
+}
+
+interface Notification {
+  id: string;
+  message: string;
+  type: 'success' | 'error';
+}
+
+interface NotificationProps {
+  notification: Notification;
+  onDismiss: (id: string) => void;
+  style?: React.CSSProperties; // Add style prop
+}
+
+const Notification: React.FC<NotificationProps> = ({ notification, onDismiss }) => {
+  const [progress, setProgress] = useState(0);
+
+  useEffect(() => {
+    const duration = 3000; // 3 seconds
+    const interval = 50; // Update every 50ms
+    const steps = duration / interval;
+    let currentStep = 0;
+
+    const timer = setInterval(() => {
+      currentStep += 1;
+      setProgress((currentStep / steps) * 100);
+      if (currentStep >= steps) {
+        clearInterval(timer);
+        onDismiss(notification.id);
+      }
+    }, interval);
+
+    return () => clearInterval(timer);
+  }, [notification.id, onDismiss]);
+
+  return (
+    <div
+      className={`fixed top-4 right-4 w-80 p-4 rounded-lg shadow-lg flex items-center space-x-3 z-50 ${
+        notification.type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+      }`}
+    >
+      {notification.type === 'success' ? (
+        <IoCheckmarkCircle className="text-2xl" />
+      ) : (
+        <IoCloseCircle className="text-2xl" />
+      )}
+      <span className="flex-1">{notification.message}</span>
+      <div className="absolute bottom-0 left-0 h-1 bg-white bg-opacity-50">
+        <div
+          className="h-full bg-white transition-all duration-[50ms] ease-linear"
+          style={{ width: `${progress}%` }}
+        ></div>
+      </div>
+    </div>
+  );
+};
 
 const NewAssetDisbursement: React.FC = () => {
-  const [requests, setRequests] = useState<NewDisbursementRequest[]>([
-    {
-      ProjectNumber: 0,
-      AssetNumber: 0,
+  const [requests, setRequests] = useState<NewDisbursementRequest[]>(
+    Array.from({ length: 10 }, () => ({
+      ProjectNumber: '',
+      AssetNumber: '',
       Category: '',
       SubCategory: '',
       PartyName: '',
@@ -17,39 +79,51 @@ const NewAssetDisbursement: React.FC = () => {
       PartyMobile: '',
       Reason: '',
       PurchaseOrder: '',
-      TotalOrderAmount: 0,
+      TotalOrderAmount: '',
       DocumentType: '',
       PartyDocumentNumber: '',
-      PartyDocumentDate: new Date(),
-      PartyDocumentPayableDays: 0,
-      PartyDocumentAmount: 0,
-      PartyDocumentGSTAmount: 0,
-      PartyDocumentTotalAmount: 0,
-      PartyTDSAmount: 0,
-      PartyAdvanceAdjusted: 0,
-      PartyRetentionAmount: 0,
-      PartyOtherDeductionAmount: 0,
-      PartyPayableAmount: 0,
-      PartyOutstandingAmount: 0,
+      PartyDocumentDate: '',
+      PartyDocumentPayableDays: '',
+      PartyDocumentAmount: '',
+      PartyDocumentGSTAmount: '',
+      PartyDocumentTotalAmount: '',
+      PartyTDSAmount: '',
+      PartyAdvanceAdjusted: '',
+      PartyRetentionAmount: '',
+      PartyOtherDeductionAmount: '',
+      PartyPayableAmount: '',
+      PartyOutstandingAmount: '',
       BorrowerAccountNumber: '',
       PartyBankName: '',
       PartyAccountName: '',
       PartyAccountNumber: '',
       PartyAccountIFSC: '',
       Status: '',
-      ApprovedAmount: 0,
-      ReferenceDRNumber: 0,
+      ApprovedAmount: '',
+      ReferenceDRNumber: '',
       Remarks: '',
       AttachmentReference: '',
       CreatedBy: '',
       LastModifiedBy: '',
-    },
-  ]);
+      Attachments: [],
+    }))
+  );
 
   const [categories, setCategories] = useState<string[]>([]);
   const [subCategories, setSubCategories] = useState<{ [key: string]: string[] }>({});
+  const [errors, setErrors] = useState<{ [key: string]: string }[]>(Array(10).fill({}));
+  const [buildings, setBuildings] = useState<Building[]>([]);
+  const [loading, setLoading] = useState<boolean[]>(Array(10).fill(false));
+  const [notifications, setNotifications] = useState<Notification[]>([]);
 
   useEffect(() => {
+    const buildingsData = localStorage.getItem('buildingsData');
+    if (buildingsData) {
+      const parsedData = JSON.parse(buildingsData);
+      const buildingsArray = Array.isArray(parsedData) ? parsedData : [parsedData];
+      setBuildings(buildingsArray);
+    }
+
     const fetchCategories = async () => {
       try {
         const response = await axios.get(`${endpoints.category}`);
@@ -101,16 +175,27 @@ const NewAssetDisbursement: React.FC = () => {
     }
   }, []);
 
-  const handleInputChange = (index: number, field: keyof NewDisbursementRequest, value: string | number | Date) => {
+  const addNotification = (message: string, type: 'success' | 'error') => {
+    const id = Math.random().toString(36).substring(2); // Simple unique ID
+    setNotifications((prev) => [...prev, { id, message, type }]);
+  };
+
+  const dismissNotification = (id: string) => {
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
+  };
+
+  const handleInputChange = (
+    index: number,
+    field: keyof NewDisbursementRequest,
+    value: string | number | Date | { file: File; name: string; type: string }[]
+  ) => {
     const newRequests = [...requests];
 
     if (
       field === 'ProjectNumber' ||
-      field === 'AssetNumber' ||
       field === 'PartyDocumentPayableDays' ||
       field === 'PartyDocumentAmount' ||
       field === 'PartyDocumentGSTAmount' ||
-      field === 'PartyDocumentTotalAmount' ||
       field === 'PartyTDSAmount' ||
       field === 'PartyAdvanceAdjusted' ||
       field === 'PartyRetentionAmount' ||
@@ -120,42 +205,220 @@ const NewAssetDisbursement: React.FC = () => {
       field === 'ApprovedAmount' ||
       field === 'ReferenceDRNumber'
     ) {
-      newRequests[index][field] = Number(value) as never;
-    } else if (field === 'PartyDocumentDate') {
-      newRequests[index][field] = new Date(value) as never;
+      newRequests[index][field] = value === '' ? '' : Number(value) as never;
+    } else if (field === 'PartyDocumentDate' || field === 'Attachments') {
+      newRequests[index][field] = value as never;
     } else {
       newRequests[index][field] = value as never;
     }
 
+    const docAmount = newRequests[index].PartyDocumentAmount;
+    const gstAmount = newRequests[index].PartyDocumentGSTAmount;
+    newRequests[index].PartyDocumentTotalAmount =
+      (docAmount === '' ? 0 : Number(docAmount)) + (gstAmount === '' ? 0 : Number(gstAmount));
+
+    setRequests(newRequests);
+
+    validateAmounts(index);
+  };
+
+  const handleFileChange = (index: number, event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files.length > 0) {
+      const filesArray = Array.from(event.target.files).map((file) => ({
+        file,
+        name: file.name,
+        type: file.type,
+      }));
+      handleInputChange(index, 'Attachments', [
+        ...requests[index].Attachments,
+        ...filesArray,
+      ]);
+    }
+  };
+
+  const handleRemoveFile = (rowIndex: number, fileIndex: number) => {
+    const newRequests = [...requests];
+    newRequests[rowIndex].Attachments = newRequests[rowIndex].Attachments.filter(
+      (_, i) => i !== fileIndex
+    );
     setRequests(newRequests);
   };
 
-  const handleSubmit = async (index: number) => {
-    try {
-      const projectNumber = localStorage.getItem('projectNumber');
-      console.log(projectNumber);
+  const getFileIcon = (fileType: string) => {
+    if (fileType === 'application/pdf') {
+      return <FaFilePdf className="text-red-600 text-4xl" />;
+    } else if (
+      fileType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+      fileType === 'application/vnd.ms-excel'
+    ) {
+      return <FaFileExcel className="text-green-600 text-4xl" />;
+    } else {
+      return <FaFile className="text-gray-600 text-4xl" />;
+    }
+  };
 
+  const handleSubmit = async (index: number) => {
+    if (!validateAmounts(index, true)) {
+      return;
+    }
+
+    try {
+      setLoading((prev) => {
+        const newLoading = [...prev];
+        newLoading[index] = true;
+        return newLoading;
+      });
+
+      const projectNumber = localStorage.getItem('projectNumber');
       if (!projectNumber) {
-        alert('Project number not found in localStorage');
+        addNotification('Project number not found in localStorage', 'error');
         return;
       }
 
-      const response = await axios.post(`${endpoints.disbursement}/${projectNumber}`, requests[index]);
-      alert('Insert successful');
+      const attachments = requests[index].Attachments;
+      const attachmentReference = attachments.length > 0
+        ? Array.from({ length: attachments.length }, (_, i) => i + 1).join(',')
+        : '';
+
+      if (attachments.length > 0) {
+        const formData = new FormData();
+        attachments.forEach(({ file }, i) => {
+          formData.append(`files[${i}]`, file);
+        });
+        await axios.post(endpoints.fileupload, formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
+      }
+
+      const requestData = {
+        ...requests[index],
+        AttachmentReference: attachmentReference,
+        Attachments: undefined,
+      };
+
+      await axios.post(`${endpoints.disbursement}/${projectNumber}`, requestData);
+      addNotification('Insert successful', 'success');
     } catch (error) {
       console.error('Error inserting asset disbursement request:', error);
-      alert('Error inserting asset disbursement request');
+      addNotification('Error inserting asset disbursement request', 'error');
+    } finally {
+      setLoading((prev) => {
+        const newLoading = [...prev];
+        newLoading[index] = false;
+        return newLoading;
+      });
     }
+  };
+
+  const addRows = () => {
+    setRequests([
+      ...requests,
+      ...Array.from({ length: 10 }, () => ({
+        ProjectNumber: '',
+        AssetNumber: '',
+        Category: '',
+        SubCategory: '',
+        PartyName: '',
+        PartyGSTIN: '',
+        PartyPAN: '',
+        PartyEmail: '',
+        PartyMobile: '',
+        Reason: '',
+        PurchaseOrder: '',
+        TotalOrderAmount: '',
+        DocumentType: '',
+        PartyDocumentNumber: '',
+        PartyDocumentDate: '',
+        PartyDocumentPayableDays: '',
+        PartyDocumentAmount: '',
+        PartyDocumentGSTAmount: '',
+        PartyDocumentTotalAmount: '',
+        PartyTDSAmount: '',
+        PartyAdvanceAdjusted: '',
+        PartyRetentionAmount: '',
+        PartyOtherDeductionAmount: '',
+        PartyPayableAmount: '',
+        PartyOutstandingAmount: '',
+        BorrowerAccountNumber: '',
+        PartyBankName: '',
+        PartyAccountName: '',
+        PartyAccountNumber: '',
+        PartyAccountIFSC: '',
+        Status: '',
+        ApprovedAmount: '',
+        ReferenceDRNumber: '',
+        Remarks: '',
+        AttachmentReference: '',
+        CreatedBy: '',
+        LastModifiedBy: '',
+        Attachments: [],
+      })),
+    ]);
+    setErrors([...errors, ...Array(10).fill({})]);
+    setLoading((prev) => [...prev, ...Array(10).fill(false)]);
+  };
+
+  const validateAmounts = (index: number, showAlert: boolean = false) => {
+    const request = requests[index];
+    const totalAmount = request.PartyDocumentTotalAmount === '' || isNaN(Number(request.PartyDocumentTotalAmount))
+      ? 0
+      : Number(request.PartyDocumentTotalAmount);
+    const newErrors = { ...errors[index] };
+
+    const fields = [
+      'PartyTDSAmount',
+      'PartyAdvanceAdjusted',
+      'PartyRetentionAmount',
+      'PartyOtherDeductionAmount',
+      'PartyPayableAmount',
+      'PartyOutstandingAmount',
+      'ApprovedAmount',
+    ] as const;
+
+    fields.forEach((field) => {
+      const value = request[field];
+      const numericValue = value === '' || isNaN(Number(value)) ? 0 : Number(value);
+      if (numericValue > totalAmount) {
+        newErrors[field] = 'Amount should be less than total amount';
+      } else {
+        delete newErrors[field];
+      }
+    });
+
+    const newErrorsArray = [...errors];
+    newErrorsArray[index] = newErrors;
+    setErrors(newErrorsArray);
+
+    if (showAlert && Object.keys(newErrors).length > 0) {
+      addNotification('Some amounts exceed the Party Document Total Amount', 'error');
+      return false;
+    }
+
+    return Object.keys(newErrors).length === 0;
   };
 
   return (
     <div className="container mx-auto p-4">
       <h1 className="text-2xl font-bold mb-4">New Asset Disbursement</h1>
+
+      <div className="fixed top-4 right-4 space-y-2 z-50">
+        {notifications.map((notification, index) => (
+          <Notification
+            key={notification.id}
+            notification={notification}
+            onDismiss={dismissNotification}
+            style={{ transform: `translateY(${index * 100}px)` }}
+          />
+        ))}
+      </div>
+
       <div className="bg-white w-full overflow-x-auto">
         <table className="min-w-full border border-gray-200">
           <thead>
             <tr>
-              <th className="py-2 px-4 border-b">Asset Number</th>
+              <th className="py-2 px-4 border-b">Asset</th>
               <th className="py-2 px-4 border-b">Category</th>
               <th className="py-2 px-4 border-b">Sub Category</th>
               <th className="py-2 px-4 border-b">Party Name</th>
@@ -188,7 +451,7 @@ const NewAssetDisbursement: React.FC = () => {
               <th className="py-2 px-4 border-b">Approved Amount</th>
               <th className="py-2 px-4 border-b">Reference DR Number</th>
               <th className="py-2 px-4 border-b">Remarks</th>
-              <th className="py-2 px-4 border-b">Attachment Reference</th>
+              <th className="py-2 px-4 border-b">Attachment</th>
               <th className="py-2 px-4 border-b">Actions</th>
             </tr>
           </thead>
@@ -196,12 +459,18 @@ const NewAssetDisbursement: React.FC = () => {
             {requests.map((request, index) => (
               <tr key={index}>
                 <td className="py-2 px-4 border-b">
-                  <input
-                    type="number"
+                  <select
                     value={request.AssetNumber}
                     onChange={(e) => handleInputChange(index, 'AssetNumber', e.target.value)}
-                    className="border p-2 w-full"
-                  />
+                    className="border p-2 w-28"
+                  >
+                    <option value="">Select a building</option>
+                    {buildings.map((building) => (
+                      <option key={building.asm_asst_nmbr_n} value={building.asm_asst_nmbr_n}>
+                        {building.asm_bldng_v}
+                      </option>
+                    ))}
+                  </select>
                 </td>
                 <td className="py-2 px-4 border-b">
                   <select
@@ -323,7 +592,7 @@ const NewAssetDisbursement: React.FC = () => {
                 <td className="py-2 px-4 border-b">
                   <input
                     type="date"
-                    value={request.PartyDocumentDate.toISOString().split('T')[0]}
+                    value={request.PartyDocumentDate}
                     onChange={(e) => handleInputChange(index, 'PartyDocumentDate', e.target.value)}
                     className="border p-2 w-full"
                   />
@@ -353,12 +622,7 @@ const NewAssetDisbursement: React.FC = () => {
                   />
                 </td>
                 <td className="py-2 px-4 border-b">
-                  <input
-                    type="number"
-                    value={request.PartyDocumentTotalAmount}
-                    onChange={(e) => handleInputChange(index, 'PartyDocumentTotalAmount', e.target.value)}
-                    className="border p-2 w-full"
-                  />
+                  <span className="block p-2 w-full">{request.PartyDocumentTotalAmount}</span>
                 </td>
                 <td className="py-2 px-4 border-b">
                   <input
@@ -367,6 +631,9 @@ const NewAssetDisbursement: React.FC = () => {
                     onChange={(e) => handleInputChange(index, 'PartyTDSAmount', e.target.value)}
                     className="border p-2 w-full"
                   />
+                  {errors[index]?.PartyTDSAmount && (
+                    <span className="text-red-500 text-sm">{errors[index]?.PartyTDSAmount}</span>
+                  )}
                 </td>
                 <td className="py-2 px-4 border-b">
                   <input
@@ -375,6 +642,9 @@ const NewAssetDisbursement: React.FC = () => {
                     onChange={(e) => handleInputChange(index, 'PartyAdvanceAdjusted', e.target.value)}
                     className="border p-2 w-full"
                   />
+                  {errors[index]?.PartyAdvanceAdjusted && (
+                    <span className="text-red-500 text-sm">{errors[index]?.PartyAdvanceAdjusted}</span>
+                  )}
                 </td>
                 <td className="py-2 px-4 border-b">
                   <input
@@ -383,6 +653,9 @@ const NewAssetDisbursement: React.FC = () => {
                     onChange={(e) => handleInputChange(index, 'PartyRetentionAmount', e.target.value)}
                     className="border p-2 w-full"
                   />
+                  {errors[index]?.PartyRetentionAmount && (
+                    <span className="text-red-500 text-sm">{errors[index]?.PartyRetentionAmount}</span>
+                  )}
                 </td>
                 <td className="py-2 px-4 border-b">
                   <input
@@ -391,6 +664,9 @@ const NewAssetDisbursement: React.FC = () => {
                     onChange={(e) => handleInputChange(index, 'PartyOtherDeductionAmount', e.target.value)}
                     className="border p-2 w-full"
                   />
+                  {errors[index]?.PartyOtherDeductionAmount && (
+                    <span className="text-red-500 text-sm">{errors[index]?.PartyOtherDeductionAmount}</span>
+                  )}
                 </td>
                 <td className="py-2 px-4 border-b">
                   <input
@@ -399,6 +675,9 @@ const NewAssetDisbursement: React.FC = () => {
                     onChange={(e) => handleInputChange(index, 'PartyPayableAmount', e.target.value)}
                     className="border p-2 w-full"
                   />
+                  {errors[index]?.PartyPayableAmount && (
+                    <span className="text-red-500 text-sm">{errors[index]?.PartyPayableAmount}</span>
+                  )}
                 </td>
                 <td className="py-2 px-4 border-b">
                   <input
@@ -407,6 +686,9 @@ const NewAssetDisbursement: React.FC = () => {
                     onChange={(e) => handleInputChange(index, 'PartyOutstandingAmount', e.target.value)}
                     className="border p-2 w-full"
                   />
+                  {errors[index]?.PartyOutstandingAmount && (
+                    <span className="text-red-500 text-sm">{errors[index]?.PartyOutstandingAmount}</span>
+                  )}
                 </td>
                 <td className="py-2 px-4 border-b">
                   <input
@@ -463,6 +745,9 @@ const NewAssetDisbursement: React.FC = () => {
                     onChange={(e) => handleInputChange(index, 'ApprovedAmount', e.target.value)}
                     className="border p-2 w-full"
                   />
+                  {errors[index]?.ApprovedAmount && (
+                    <span className="text-red-500 text-sm">{errors[index]?.ApprovedAmount}</span>
+                  )}
                 </td>
                 <td className="py-2 px-4 border-b">
                   <input
@@ -481,19 +766,78 @@ const NewAssetDisbursement: React.FC = () => {
                   />
                 </td>
                 <td className="py-2 px-4 border-b">
-                  <input
-                    type="text"
-                    value={request.AttachmentReference}
-                    onChange={(e) => handleInputChange(index, 'AttachmentReference', e.target.value)}
-                    className="border p-2 w-full"
-                  />
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="file"
+                      id={`file-input-${index}`}
+                      className="hidden"
+                      multiple
+                      onChange={(e) => handleFileChange(index, e)}
+                    />
+                    <label
+                      htmlFor={`file-input-${index}`}
+                      className="cursor-pointer text-2xl text-gray-600"
+                    >
+                      +
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {request.Attachments.map(({ name, type }, fileIndex) => (
+                        <div
+                          key={fileIndex}
+                          className="flex flex-col items-center space-y-1 relative group"
+                        >
+                          <div className="relative">
+                            {getFileIcon(type)}
+                            <button
+                              onClick={() => handleRemoveFile(index, fileIndex)}
+                              className="absolute -top-2 -right-2 text-red-500 text-lg"
+                            >
+                              <IoClose />
+                            </button>
+                          </div>
+                          <span className="text-sm text-gray-800 text-center max-w-[100px] truncate group-hover:whitespace-normal group-hover:overflow-visible">
+                            {name}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </td>
                 <td className="py-2 px-4 border-b">
                   <button
                     onClick={() => handleSubmit(index)}
-                    className="bg-blue-500 text-white py-2 px-4 rounded"
+                    className={`py-2 px-4 rounded text-white flex items-center justify-center ${
+                      loading[index] ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-500 hover:bg-blue-600'
+                    }`}
+                    disabled={loading[index]}
                   >
-                    Submit
+                    {loading[index] ? (
+                      <>
+                        <svg
+                          className="animate-spin h-5 w-5 mr-2 text-white"
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          ></circle>
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                          ></path>
+                        </svg>
+                        Submitting...
+                      </>
+                    ) : (
+                      'Submit'
+                    )}
                   </button>
                 </td>
               </tr>
@@ -501,6 +845,9 @@ const NewAssetDisbursement: React.FC = () => {
           </tbody>
         </table>
       </div>
+      <button onClick={addRows} className="bg-green-500 text-white py-2 px-4 rounded mb-4">
+        Add 10 more rows
+      </button>
     </div>
   );
 };
