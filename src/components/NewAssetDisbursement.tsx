@@ -1,9 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { NewDisbursementRequest } from '../types';
-import axios from 'axios';
-import endpoints from '../endpoints';
-import { FaFilePdf, FaFileExcel, FaFile } from 'react-icons/fa';
-import { IoClose, IoCheckmarkCircle, IoCloseCircle } from 'react-icons/io5';
+import React, { useState, useEffect } from "react";
+import {
+  NewDisbursementRequest,
+  MaxFdsbNumberResponse,
+  ProjectAssetBankAccount,
+  DpBankAccount,
+} from "../types";
+import axios from "axios";
+import endpoints from "../endpoints";
+import { FaFilePdf, FaFileExcel, FaFile, } from "react-icons/fa";
+import { IoClose, IoCheckmarkCircle, IoCloseCircle } from "react-icons/io5";
 
 interface Building {
   asm_bldng_v: string;
@@ -13,21 +18,24 @@ interface Building {
 interface Notification {
   id: string;
   message: string;
-  type: 'success' | 'error';
+  type: "success" | "error";
 }
 
 interface NotificationProps {
   notification: Notification;
   onDismiss: (id: string) => void;
-  style?: React.CSSProperties; // Add style prop
+  style?: React.CSSProperties;
 }
 
-const Notification: React.FC<NotificationProps> = ({ notification, onDismiss }) => {
+const Notification: React.FC<NotificationProps> = ({
+  notification,
+  onDismiss,
+}) => {
   const [progress, setProgress] = useState(0);
 
   useEffect(() => {
-    const duration = 3000; // 3 seconds
-    const interval = 50; // Update every 50ms
+    const duration = 3000;
+    const interval = 50;
     const steps = duration / interval;
     let currentStep = 0;
 
@@ -46,10 +54,12 @@ const Notification: React.FC<NotificationProps> = ({ notification, onDismiss }) 
   return (
     <div
       className={`fixed top-4 right-4 w-80 p-4 rounded-lg shadow-lg flex items-center space-x-3 z-50 ${
-        notification.type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+        notification.type === "success"
+          ? "bg-green-500 text-white"
+          : "bg-red-500 text-white"
       }`}
     >
-      {notification.type === 'success' ? (
+      {notification.type === "success" ? (
         <IoCheckmarkCircle className="text-2xl" />
       ) : (
         <IoCloseCircle className="text-2xl" />
@@ -68,59 +78,75 @@ const Notification: React.FC<NotificationProps> = ({ notification, onDismiss }) 
 const NewAssetDisbursement: React.FC = () => {
   const [requests, setRequests] = useState<NewDisbursementRequest[]>(
     Array.from({ length: 10 }, () => ({
-      ProjectNumber: '',
-      AssetNumber: '',
-      Category: '',
-      SubCategory: '',
-      PartyName: '',
-      PartyGSTIN: '',
-      PartyPAN: '',
-      PartyEmail: '',
-      PartyMobile: '',
-      Reason: '',
-      PurchaseOrder: '',
-      TotalOrderAmount: '',
-      DocumentType: '',
-      PartyDocumentNumber: '',
-      PartyDocumentDate: '',
-      PartyDocumentPayableDays: '',
-      PartyDocumentAmount: '',
-      PartyDocumentGSTAmount: '',
-      PartyDocumentTotalAmount: '',
-      PartyTDSAmount: '',
-      PartyAdvanceAdjusted: '',
-      PartyRetentionAmount: '',
-      PartyOtherDeductionAmount: '',
-      PartyPayableAmount: '',
-      PartyOutstandingAmount: '',
-      BorrowerAccountNumber: '',
-      PartyBankName: '',
-      PartyAccountName: '',
-      PartyAccountNumber: '',
-      PartyAccountIFSC: '',
-      Status: '',
-      ApprovedAmount: '',
-      ReferenceDRNumber: '',
-      Remarks: '',
-      AttachmentReference: '',
-      CreatedBy: '',
-      LastModifiedBy: '',
+      ProjectNumber: "",
+      AssetNumber: "",
+      Category: "",
+      SubCategory: "",
+      PartyName: "",
+      PartyGSTIN: "",
+      PartyPAN: "",
+      PartyEmail: "",
+      PartyMobile: "",
+      Reason: "",
+      PurchaseOrder: "",
+      TotalOrderAmount: "",
+      DocumentType: "",
+      PartyDocumentNumber: "",
+      PartyDocumentDate: "",
+      PartyDocumentPayableDays: "",
+      PartyDocumentAmount: "",
+      PartyDocumentGSTAmount: "",
+      PartyDocumentTotalAmount: "",
+      PartyTDSAmount: "",
+      PartyAdvanceAdjusted: "",
+      PartyRetentionAmount: "",
+      PartyOtherDeductionAmount: "",
+      PartyPayableAmount: "",
+      PartyOutstandingAmount: "",
+      BorrowerAccountNumber: "",
+      PartyBankName: "",
+      PartyAccountName: "",
+      PartyAccountNumber: "",
+      PartyAccountIFSC: "",
+      Status: "",
+      ApprovedAmount: "",
+      ReferenceDRNumber: "",
+      Remarks: "",
+      AttachmentReference: "",
+      CreatedBy: "",
+      LastModifiedBy: "",
       Attachments: [],
     }))
   );
 
   const [categories, setCategories] = useState<string[]>([]);
-  const [subCategories, setSubCategories] = useState<{ [key: string]: string[] }>({});
-  const [errors, setErrors] = useState<{ [key: string]: string }[]>(Array(10).fill({}));
+  const [subCategories, setSubCategories] = useState<{
+    [key: string]: string[];
+  }>({});
+  const [errors, setErrors] = useState<{ [key: string]: string }[]>(
+    Array(10).fill({})
+  );
   const [buildings, setBuildings] = useState<Building[]>([]);
   const [loading, setLoading] = useState<boolean[]>(Array(10).fill(false));
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [submittedRows, setSubmittedRows] = useState<boolean[]>(
+    Array(10).fill(false)
+  );
+  const [maxFdsbNumber, setMaxFdsbNumber] = useState<number>(0);
+  const [accountNumbers, setAccountNumbers] = useState<
+    ProjectAssetBankAccount[][]
+  >(Array(10).fill([]));
+  const [dpAccountNumbers, setDpAccountNumbers] = useState<DpBankAccount[][]>(
+    Array(10).fill([])
+  );
 
   useEffect(() => {
-    const buildingsData = localStorage.getItem('buildingsData');
+    const buildingsData = localStorage.getItem("buildingsData");
     if (buildingsData) {
       const parsedData = JSON.parse(buildingsData);
-      const buildingsArray = Array.isArray(parsedData) ? parsedData : [parsedData];
+      const buildingsArray = Array.isArray(parsedData)
+        ? parsedData
+        : [parsedData];
       setBuildings(buildingsArray);
     }
 
@@ -129,30 +155,41 @@ const NewAssetDisbursement: React.FC = () => {
         const response = await axios.get(`${endpoints.category}`);
         setCategories(response.data);
       } catch (error) {
-        console.error('Error fetching categories:', error);
+        console.error("Error fetching categories:", error);
       }
     };
 
+    const fetchInitialMaxFdsbNumber = async () => {
+      const max = await fetchMaxFdsbNumber();
+      setMaxFdsbNumber(max);
+    };
+
     fetchCategories();
+    fetchInitialMaxFdsbNumber();
   }, []);
 
   useEffect(() => {
     const fetchSubCategories = async () => {
       try {
         const subCategoryPromises = categories.map(async (category) => {
-          const response = await axios.get(`${endpoints.subcategory}?category=${category}`);
+          const response = await axios.get(
+            `${endpoints.subcategory}?category=${category}`
+          );
           return { category, subCategories: response.data };
         });
 
         const subCategoryResults = await Promise.all(subCategoryPromises);
-        const subCategoryMap = subCategoryResults.reduce((acc, { category, subCategories }) => {
-          acc[category] = subCategories;
-          return acc;
-        }, {} as { [key: string]: string[] });
+        const subCategoryMap = subCategoryResults.reduce(
+          (acc, { category, subCategories }) => {
+            acc[category] = subCategories;
+            return acc;
+          },
+          {} as { [key: string]: string[] }
+        );
 
         setSubCategories(subCategoryMap);
       } catch (error) {
-        console.error('Error fetching subcategories:', error);
+        console.error("Error fetching subcategories:", error);
       }
     };
 
@@ -162,7 +199,7 @@ const NewAssetDisbursement: React.FC = () => {
   }, [categories]);
 
   useEffect(() => {
-    const rememberedCredentials = localStorage.getItem('rememberedCredentials');
+    const rememberedCredentials = localStorage.getItem("rememberedCredentials");
     if (rememberedCredentials) {
       const { username } = JSON.parse(rememberedCredentials);
       setRequests((prevRequests) =>
@@ -175,13 +212,170 @@ const NewAssetDisbursement: React.FC = () => {
     }
   }, []);
 
-  const addNotification = (message: string, type: 'success' | 'error') => {
-    const id = Math.random().toString(36).substring(2); // Simple unique ID
+  const addNotification = (message: string, type: "success" | "error") => {
+    const id = Math.random().toString(36).substring(2);
     setNotifications((prev) => [...prev, { id, message, type }]);
   };
 
   const dismissNotification = (id: string) => {
     setNotifications((prev) => prev.filter((n) => n.id !== id));
+  };
+
+  const fetchBorrowerAccountNumber = async (
+    projectNumber: string,
+    assetNumber: string,
+    index: number
+  ) => {
+    try {
+      console.log(
+        `Fetching borrower accounts for project: ${projectNumber}, asset: ${assetNumber}, index: ${index}`
+      );
+      const response = await axios.get(
+        `${endpoints.accntnum}/${projectNumber}/${assetNumber}`
+      );
+      const accounts: ProjectAssetBankAccount[] = response.data;
+      console.log("Borrower accounts response:", accounts);
+      if (accounts && accounts.length > 0) {
+        setAccountNumbers((prev) => {
+          const newAccountNumbers = [...prev];
+          newAccountNumbers[index] = accounts;
+          return newAccountNumbers;
+        });
+        setDpAccountNumbers((prev) => {
+          const newDpAccountNumbers = [...prev];
+          newDpAccountNumbers[index] = [];
+          return newDpAccountNumbers;
+        });
+        setRequests((prevRequests) => {
+          const newRequests = [...prevRequests];
+          newRequests[index].BorrowerAccountNumber = "";
+          return newRequests;
+        });
+      } else {
+        console.log("No borrower accounts found");
+        addNotification(
+          "No borrower account numbers found for the selected asset",
+          "error"
+        );
+        setAccountNumbers((prev) => {
+          const newAccountNumbers = [...prev];
+          newAccountNumbers[index] = [];
+          return newAccountNumbers;
+        });
+        setRequests((prevRequests) => {
+          const newRequests = [...prevRequests];
+          newRequests[index].BorrowerAccountNumber = "";
+          return newRequests;
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching borrower account numbers:", error);
+      addNotification("Failed to fetch borrower account numbers", "error");
+      setAccountNumbers((prev) => {
+        const newAccountNumbers = [...prev];
+        newAccountNumbers[index] = [];
+        return newAccountNumbers;
+      });
+      setRequests((prevRequests) => {
+        const newRequests = [...prevRequests];
+        newRequests[index].BorrowerAccountNumber = "";
+        return newRequests;
+      });
+    }
+  };
+
+  const fetchDpBankAccount = async (projectNumber: string, index: number) => {
+    try {
+      console.log(
+        `Fetching DP accounts for project: ${projectNumber}, index: ${index}`
+      );
+      const response = await axios.get<DpBankAccount[]>(
+        `${endpoints.dpaccntnum}/${projectNumber}`
+      );
+      const accounts = response.data;
+      console.log("DP accounts response:", accounts);
+      if (accounts && accounts.length > 0) {
+        setDpAccountNumbers((prev) => {
+          const newDpAccountNumbers = [...prev];
+          newDpAccountNumbers[index] = accounts;
+          return newDpAccountNumbers;
+        });
+        setAccountNumbers((prev) => {
+          const newAccountNumbers = [...prev];
+          newAccountNumbers[index] = [];
+          return newAccountNumbers;
+        });
+        setRequests((prevRequests) => {
+          const newRequests = [...prevRequests];
+          newRequests[index].BorrowerAccountNumber = "";
+          return newRequests;
+        });
+      } else {
+        console.log("No DP accounts found");
+        addNotification(
+          "No DP bank accounts found for the selected project",
+          "error"
+        );
+        setDpAccountNumbers((prev) => {
+          const newDpAccountNumbers = [...prev];
+          newDpAccountNumbers[index] = [];
+          return newDpAccountNumbers;
+        });
+        setRequests((prevRequests) => {
+          const newRequests = [...prevRequests];
+          newRequests[index].BorrowerAccountNumber = "";
+          return newRequests;
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching DP bank accounts:", error);
+      addNotification("Failed to fetch DP bank accounts", "error");
+      setDpAccountNumbers((prev) => {
+        const newDpAccountNumbers = [...prev];
+        newDpAccountNumbers[index] = [];
+        return newDpAccountNumbers;
+      });
+      setRequests((prevRequests) => {
+        const newRequests = [...prevRequests];
+        newRequests[index].BorrowerAccountNumber = "";
+        return newRequests;
+      });
+    }
+  };
+
+  const calculatePayableAmount = (request: NewDisbursementRequest) => {
+    const totalAmount =
+      request.PartyDocumentTotalAmount === "" ||
+      isNaN(Number(request.PartyDocumentTotalAmount))
+        ? 0
+        : Number(request.PartyDocumentTotalAmount);
+    const tdsAmount =
+      request.PartyTDSAmount === "" || isNaN(Number(request.PartyTDSAmount))
+        ? 0
+        : Number(request.PartyTDSAmount);
+    const advanceAdjusted =
+      request.PartyAdvanceAdjusted === "" ||
+      isNaN(Number(request.PartyAdvanceAdjusted))
+        ? 0
+        : Number(request.PartyAdvanceAdjusted);
+    const retentionAmount =
+      request.PartyRetentionAmount === "" ||
+      isNaN(Number(request.PartyRetentionAmount))
+        ? 0
+        : Number(request.PartyRetentionAmount);
+    const otherDeductionAmount =
+      request.PartyOtherDeductionAmount === "" ||
+      isNaN(Number(request.PartyOtherDeductionAmount))
+        ? 0
+        : Number(request.PartyOtherDeductionAmount);
+
+    return (
+      totalAmount -
+      tdsAmount -
+      advanceAdjusted -
+      retentionAmount -
+      otherDeductionAmount
+    );
   };
 
   const handleInputChange = (
@@ -192,21 +386,20 @@ const NewAssetDisbursement: React.FC = () => {
     const newRequests = [...requests];
 
     if (
-      field === 'ProjectNumber' ||
-      field === 'PartyDocumentPayableDays' ||
-      field === 'PartyDocumentAmount' ||
-      field === 'PartyDocumentGSTAmount' ||
-      field === 'PartyTDSAmount' ||
-      field === 'PartyAdvanceAdjusted' ||
-      field === 'PartyRetentionAmount' ||
-      field === 'PartyOtherDeductionAmount' ||
-      field === 'PartyPayableAmount' ||
-      field === 'PartyOutstandingAmount' ||
-      field === 'ApprovedAmount' ||
-      field === 'ReferenceDRNumber'
+      field === "ProjectNumber" ||
+      field === "PartyDocumentPayableDays" ||
+      field === "PartyDocumentAmount" ||
+      field === "PartyDocumentGSTAmount" ||
+      field === "PartyTDSAmount" ||
+      field === "PartyAdvanceAdjusted" ||
+      field === "PartyRetentionAmount" ||
+      field === "PartyOtherDeductionAmount" ||
+      field === "PartyOutstandingAmount" ||
+      field === "ApprovedAmount" ||
+      field === "ReferenceDRNumber"
     ) {
-      newRequests[index][field] = value === '' ? '' : Number(value) as never;
-    } else if (field === 'PartyDocumentDate' || field === 'Attachments') {
+      newRequests[index][field] = value === "" ? "" : (Number(value) as never);
+    } else if (field === "PartyDocumentDate" || field === "Attachments") {
       newRequests[index][field] = value as never;
     } else {
       newRequests[index][field] = value as never;
@@ -215,21 +408,119 @@ const NewAssetDisbursement: React.FC = () => {
     const docAmount = newRequests[index].PartyDocumentAmount;
     const gstAmount = newRequests[index].PartyDocumentGSTAmount;
     newRequests[index].PartyDocumentTotalAmount =
-      (docAmount === '' ? 0 : Number(docAmount)) + (gstAmount === '' ? 0 : Number(gstAmount));
+      (docAmount === "" ? 0 : Number(docAmount)) +
+      (gstAmount === "" ? 0 : Number(gstAmount));
+
+    newRequests[index].PartyPayableAmount = calculatePayableAmount(
+      newRequests[index]
+    ).toString();
+
+    const projectNumber = localStorage.getItem("projectNumber");
+    if (!projectNumber) {
+      addNotification("Project number not found in localStorage", "error");
+      console.log("Project number missing in localStorage");
+      return;
+    }
+
+    const shouldFetchDpAccount =
+      (newRequests[index].Category === "Finance" &&
+        [
+          "Debenture Interest",
+          "AMC",
+          "Redemption premium",
+          "Distribution fees",
+        ].includes(newRequests[index].SubCategory)) ||
+      (newRequests[index].Category === "Architect and Consultant" &&
+        ["Distribution fees", "AMC"].includes(newRequests[index].SubCategory));
+
+    console.log(
+      `handleInputChange: index=${index}, field=${field}, value=${value}, shouldFetchDpAccount=${shouldFetchDpAccount}`
+    );
+
+    if (field === "AssetNumber" && !shouldFetchDpAccount) {
+      if (value === "") {
+        console.log("Clearing account numbers for empty AssetNumber");
+        setAccountNumbers((prev) => {
+          const newAccountNumbers = [...prev];
+          newAccountNumbers[index] = [];
+          return newAccountNumbers;
+        });
+        setDpAccountNumbers((prev) => {
+          const newDpAccountNumbers = [...prev];
+          newDpAccountNumbers[index] = [];
+          return newDpAccountNumbers;
+        });
+        newRequests[index].BorrowerAccountNumber = "";
+      } else {
+        console.log(
+          `Triggering fetchBorrowerAccountNumber for AssetNumber: ${value}`
+        );
+        fetchBorrowerAccountNumber(projectNumber, value as string, index);
+      }
+    }
+
+    if (field === "SubCategory" && value !== "") {
+      console.log(
+        `SubCategory changed to: ${value}, checking if DP account fetch is needed`
+      );
+      if (shouldFetchDpAccount) {
+        console.log("Triggering fetchDpBankAccount");
+        fetchDpBankAccount(projectNumber, index);
+      } else {
+        console.log(
+          "Clearing DP accounts as SubCategory does not require DP account"
+        );
+        setDpAccountNumbers((prev) => {
+          const newDpAccountNumbers = [...prev];
+          newDpAccountNumbers[index] = [];
+          return newDpAccountNumbers;
+        });
+        if (newRequests[index].AssetNumber) {
+          console.log(
+            "Re-fetching borrower accounts due to SubCategory change"
+          );
+          fetchBorrowerAccountNumber(
+            projectNumber,
+            newRequests[index].AssetNumber,
+            index
+          );
+        }
+      }
+    }
+
+    if (field === "Category" && value === "") {
+      console.log(
+        "Clearing SubCategory and account numbers due to empty Category"
+      );
+      newRequests[index].SubCategory = "";
+      newRequests[index].BorrowerAccountNumber = "";
+      setAccountNumbers((prev) => {
+        const newAccountNumbers = [...prev];
+        newAccountNumbers[index] = [];
+        return newAccountNumbers;
+      });
+      setDpAccountNumbers((prev) => {
+        const newDpAccountNumbers = [...prev];
+        newDpAccountNumbers[index] = [];
+        return newDpAccountNumbers;
+      });
+    }
 
     setRequests(newRequests);
-
     validateAmounts(index);
   };
 
-  const handleFileChange = (index: number, event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (
+    index: number,
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
     if (event.target.files && event.target.files.length > 0) {
       const filesArray = Array.from(event.target.files).map((file) => ({
         file,
         name: file.name,
         type: file.type,
       }));
-      handleInputChange(index, 'Attachments', [
+      handleInputChange(index, "Attachments", [
         ...requests[index].Attachments,
         ...filesArray,
       ]);
@@ -238,22 +529,75 @@ const NewAssetDisbursement: React.FC = () => {
 
   const handleRemoveFile = (rowIndex: number, fileIndex: number) => {
     const newRequests = [...requests];
-    newRequests[rowIndex].Attachments = newRequests[rowIndex].Attachments.filter(
-      (_, i) => i !== fileIndex
-    );
+    newRequests[rowIndex].Attachments = newRequests[
+      rowIndex
+    ].Attachments.filter((_, i) => i !== fileIndex);
     setRequests(newRequests);
   };
 
   const getFileIcon = (fileType: string) => {
-    if (fileType === 'application/pdf') {
+    if (fileType === "application/pdf") {
       return <FaFilePdf className="text-red-600 text-4xl" />;
     } else if (
-      fileType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
-      fileType === 'application/vnd.ms-excel'
+      fileType ===
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
+      fileType === "application/vnd.ms-excel"
     ) {
       return <FaFileExcel className="text-green-600 text-4xl" />;
     } else {
       return <FaFile className="text-gray-600 text-4xl" />;
+    }
+  };
+
+  const fetchMaxFdsbNumber = async (): Promise<number> => {
+    try {
+      const response = await axios.get<MaxFdsbNumberResponse>(
+        endpoints.maxfdsbnumber,
+        {
+          headers: {
+            Accept: "application/json",
+          },
+        }
+      );
+
+      console.log("fetchMaxFdsbNumber status:", response.status);
+      console.log(
+        "fetchMaxFdsbNumber content-type:",
+        response.headers["content-type"]
+      );
+
+      const contentType = response.headers["content-type"]?.toLowerCase();
+      if (!contentType?.includes("application/json")) {
+        console.error("Received non-JSON response:", response.data);
+        addNotification(
+          "Invalid response format from max FDSB number API",
+          "error"
+        );
+        return 0;
+      }
+
+      const maxFdsbNumber = Number(response.data?.maxFdsbNumber);
+      if (isNaN(maxFdsbNumber)) {
+        console.error(
+          "Invalid maxFdsbNumber received:",
+          response.data?.maxFdsbNumber
+        );
+        addNotification(
+          "Invalid max FDSB number received from server",
+          "error"
+        );
+        return 0;
+      }
+
+      console.log("fetchMaxFdsbNumber success:", maxFdsbNumber);
+      return maxFdsbNumber;
+    } catch (error) {
+      console.error("Error fetching max FDSB_NMBR_N:", error);
+      addNotification(
+        "Failed to fetch max FDSB number. Please check the API endpoint configuration.",
+        "error"
+      );
+      return 0;
     }
   };
 
@@ -269,25 +613,32 @@ const NewAssetDisbursement: React.FC = () => {
         return newLoading;
       });
 
-      const projectNumber = localStorage.getItem('projectNumber');
+      const projectNumber = localStorage.getItem("projectNumber");
       if (!projectNumber) {
-        addNotification('Project number not found in localStorage', 'error');
+        addNotification("Project number not found in localStorage", "error");
         return;
       }
 
       const attachments = requests[index].Attachments;
-      const attachmentReference = attachments.length > 0
-        ? Array.from({ length: attachments.length }, (_, i) => i + 1).join(',')
-        : '';
+      let attachmentReference = "";
 
       if (attachments.length > 0) {
+        const fileCount = attachments.length;
+        const referenceNumbers = Array.from(
+          { length: fileCount },
+          (_, i) => maxFdsbNumber + i + 1
+        );
+        console.log("referenceNumbers:", referenceNumbers);
+        attachmentReference = referenceNumbers.join(",");
+        console.log("attachmentReference:", attachmentReference);
+
         const formData = new FormData();
         attachments.forEach(({ file }, i) => {
           formData.append(`files[${i}]`, file);
         });
         await axios.post(endpoints.fileupload, formData, {
           headers: {
-            'Content-Type': 'multipart/form-data',
+            "Content-Type": "multipart/form-data",
           },
         });
       }
@@ -298,11 +649,23 @@ const NewAssetDisbursement: React.FC = () => {
         Attachments: undefined,
       };
 
-      await axios.post(`${endpoints.disbursement}/${projectNumber}`, requestData);
-      addNotification('Insert successful', 'success');
+      await axios.post(
+        `${endpoints.disbursement}/${projectNumber}`,
+        requestData
+      );
+      addNotification("Insert successful", "success");
+
+      setSubmittedRows((prev) => {
+        const newSubmitted = [...prev];
+        newSubmitted[index] = true;
+        return newSubmitted;
+      });
+
+      const newMax = await fetchMaxFdsbNumber();
+      setMaxFdsbNumber(newMax);
     } catch (error) {
-      console.error('Error inserting asset disbursement request:', error);
-      addNotification('Error inserting asset disbursement request', 'error');
+      console.error("Error inserting asset disbursement request:", error);
+      addNotification("Error inserting asset disbursement request", "error");
     } finally {
       setLoading((prev) => {
         const newLoading = [...prev];
@@ -316,72 +679,77 @@ const NewAssetDisbursement: React.FC = () => {
     setRequests([
       ...requests,
       ...Array.from({ length: 10 }, () => ({
-        ProjectNumber: '',
-        AssetNumber: '',
-        Category: '',
-        SubCategory: '',
-        PartyName: '',
-        PartyGSTIN: '',
-        PartyPAN: '',
-        PartyEmail: '',
-        PartyMobile: '',
-        Reason: '',
-        PurchaseOrder: '',
-        TotalOrderAmount: '',
-        DocumentType: '',
-        PartyDocumentNumber: '',
-        PartyDocumentDate: '',
-        PartyDocumentPayableDays: '',
-        PartyDocumentAmount: '',
-        PartyDocumentGSTAmount: '',
-        PartyDocumentTotalAmount: '',
-        PartyTDSAmount: '',
-        PartyAdvanceAdjusted: '',
-        PartyRetentionAmount: '',
-        PartyOtherDeductionAmount: '',
-        PartyPayableAmount: '',
-        PartyOutstandingAmount: '',
-        BorrowerAccountNumber: '',
-        PartyBankName: '',
-        PartyAccountName: '',
-        PartyAccountNumber: '',
-        PartyAccountIFSC: '',
-        Status: '',
-        ApprovedAmount: '',
-        ReferenceDRNumber: '',
-        Remarks: '',
-        AttachmentReference: '',
-        CreatedBy: '',
-        LastModifiedBy: '',
+        ProjectNumber: "",
+        AssetNumber: "",
+        Category: "",
+        SubCategory: "",
+        PartyName: "",
+        PartyGSTIN: "",
+        PartyPAN: "",
+        PartyEmail: "",
+        PartyMobile: "",
+        Reason: "",
+        PurchaseOrder: "",
+        TotalOrderAmount: "",
+        DocumentType: "",
+        PartyDocumentNumber: "",
+        PartyDocumentDate: "",
+        PartyDocumentPayableDays: "",
+        PartyDocumentAmount: "",
+        PartyDocumentGSTAmount: "",
+        PartyDocumentTotalAmount: "",
+        PartyTDSAmount: "",
+        PartyAdvanceAdjusted: "",
+        PartyRetentionAmount: "",
+        PartyOtherDeductionAmount: "",
+        PartyPayableAmount: "",
+        PartyOutstandingAmount: "",
+        BorrowerAccountNumber: "",
+        PartyBankName: "",
+        PartyAccountName: "",
+        PartyAccountNumber: "",
+        PartyAccountIFSC: "",
+        Status: "",
+        ApprovedAmount: "",
+        ReferenceDRNumber: "",
+        Remarks: "",
+        AttachmentReference: "",
+        CreatedBy: "",
+        LastModifiedBy: "",
         Attachments: [],
       })),
     ]);
     setErrors([...errors, ...Array(10).fill({})]);
     setLoading((prev) => [...prev, ...Array(10).fill(false)]);
+    setSubmittedRows((prev) => [...prev, ...Array(10).fill(false)]);
+    setAccountNumbers((prev) => [...prev, ...Array(10).fill([])]);
+    setDpAccountNumbers((prev) => [...prev, ...Array(10).fill([])]);
   };
 
   const validateAmounts = (index: number, showAlert: boolean = false) => {
     const request = requests[index];
-    const totalAmount = request.PartyDocumentTotalAmount === '' || isNaN(Number(request.PartyDocumentTotalAmount))
-      ? 0
-      : Number(request.PartyDocumentTotalAmount);
+    const totalAmount =
+      request.PartyDocumentTotalAmount === "" ||
+      isNaN(Number(request.PartyDocumentTotalAmount))
+        ? 0
+        : Number(request.PartyDocumentTotalAmount);
     const newErrors = { ...errors[index] };
 
     const fields = [
-      'PartyTDSAmount',
-      'PartyAdvanceAdjusted',
-      'PartyRetentionAmount',
-      'PartyOtherDeductionAmount',
-      'PartyPayableAmount',
-      'PartyOutstandingAmount',
-      'ApprovedAmount',
+      "PartyTDSAmount",
+      "PartyAdvanceAdjusted",
+      "PartyRetentionAmount",
+      "PartyOtherDeductionAmount",
+      "PartyOutstandingAmount",
+      "ApprovedAmount",
     ] as const;
 
     fields.forEach((field) => {
       const value = request[field];
-      const numericValue = value === '' || isNaN(Number(value)) ? 0 : Number(value);
+      const numericValue =
+        value === "" || isNaN(Number(value)) ? 0 : Number(value);
       if (numericValue > totalAmount) {
-        newErrors[field] = 'Amount should be less than total amount';
+        newErrors[field] = "Amount should be less than total amount";
       } else {
         delete newErrors[field];
       }
@@ -392,7 +760,10 @@ const NewAssetDisbursement: React.FC = () => {
     setErrors(newErrorsArray);
 
     if (showAlert && Object.keys(newErrors).length > 0) {
-      addNotification('Some amounts exceed the Party Document Total Amount', 'error');
+      addNotification(
+        "Some amounts exceed the Party Document Total Amount",
+        "error"
+      );
       return false;
     }
 
@@ -432,14 +803,20 @@ const NewAssetDisbursement: React.FC = () => {
               <th className="py-2 px-4 border-b">Document Type</th>
               <th className="py-2 px-4 border-b">Party Document Number</th>
               <th className="py-2 px-4 border-b">Party Document Date</th>
-              <th className="py-2 px-4 border-b">Party Document Payable Days</th>
+              <th className="py-2 px-4 border-b">
+                Party Document Payable Days
+              </th>
               <th className="py-2 px-4 border-b">Party Document Amount</th>
               <th className="py-2 px-4 border-b">Party Document GST Amount</th>
-              <th className="py-2 px-4 border-b">Party Document Total Amount</th>
+              <th className="py-2 px-4 border-b">
+                Party Document Total Amount
+              </th>
               <th className="py-2 px-4 border-b">Party TDS Amount</th>
               <th className="py-2 px-4 border-b">Party Advance Adjusted</th>
               <th className="py-2 px-4 border-b">Party Retention Amount</th>
-              <th className="py-2 px-4 border-b">Party Other Deduction Amount</th>
+              <th className="py-2 px-4 border-b">
+                Party Other Deduction Amount
+              </th>
               <th className="py-2 px-4 border-b">Party Payable Amount</th>
               <th className="py-2 px-4 border-b">Party Outstanding Amount</th>
               <th className="py-2 px-4 border-b">Borrower Account Number</th>
@@ -461,12 +838,18 @@ const NewAssetDisbursement: React.FC = () => {
                 <td className="py-2 px-4 border-b">
                   <select
                     value={request.AssetNumber}
-                    onChange={(e) => handleInputChange(index, 'AssetNumber', e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange(index, "AssetNumber", e.target.value)
+                    }
                     className="border p-2 w-28"
+                    disabled={submittedRows[index]}
                   >
                     <option value="">Select a building</option>
                     {buildings.map((building) => (
-                      <option key={building.asm_asst_nmbr_n} value={building.asm_asst_nmbr_n}>
+                      <option
+                        key={building.asm_asst_nmbr_n}
+                        value={building.asm_asst_nmbr_n}
+                      >
                         {building.asm_bldng_v}
                       </option>
                     ))}
@@ -475,8 +858,11 @@ const NewAssetDisbursement: React.FC = () => {
                 <td className="py-2 px-4 border-b">
                   <select
                     value={request.Category}
-                    onChange={(e) => handleInputChange(index, 'Category', e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange(index, "Category", e.target.value)
+                    }
                     className="border p-2 w-full"
+                    disabled={submittedRows[index]}
                   >
                     <option value="">Select Category</option>
                     {categories.map((category) => (
@@ -489,9 +875,11 @@ const NewAssetDisbursement: React.FC = () => {
                 <td className="py-2 px-4 border-b">
                   <select
                     value={request.SubCategory}
-                    onChange={(e) => handleInputChange(index, 'SubCategory', e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange(index, "SubCategory", e.target.value)
+                    }
                     className="border p-2 w-full"
-                    disabled={!request.Category}
+                    disabled={!request.Category || submittedRows[index]}
                   >
                     <option value="">Select SubCategory</option>
                     {request.Category && subCategories[request.Category]
@@ -507,71 +895,102 @@ const NewAssetDisbursement: React.FC = () => {
                   <input
                     type="text"
                     value={request.PartyName}
-                    onChange={(e) => handleInputChange(index, 'PartyName', e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange(index, "PartyName", e.target.value)
+                    }
                     className="border p-2 w-full"
+                    disabled={submittedRows[index]}
                   />
                 </td>
                 <td className="py-2 px-4 border-b">
                   <input
                     type="text"
                     value={request.PartyGSTIN}
-                    onChange={(e) => handleInputChange(index, 'PartyGSTIN', e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange(index, "PartyGSTIN", e.target.value)
+                    }
                     className="border p-2 w-full"
+                    disabled={submittedRows[index]}
                   />
                 </td>
                 <td className="py-2 px-4 border-b">
                   <input
                     type="text"
                     value={request.PartyPAN}
-                    onChange={(e) => handleInputChange(index, 'PartyPAN', e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange(index, "PartyPAN", e.target.value)
+                    }
                     className="border p-2 w-full"
+                    disabled={submittedRows[index]}
                   />
                 </td>
                 <td className="py-2 px-4 border-b">
                   <input
                     type="text"
                     value={request.PartyEmail}
-                    onChange={(e) => handleInputChange(index, 'PartyEmail', e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange(index, "PartyEmail", e.target.value)
+                    }
                     className="border p-2 w-full"
+                    disabled={submittedRows[index]}
                   />
                 </td>
                 <td className="py-2 px-4 border-b">
                   <input
                     type="text"
                     value={request.PartyMobile}
-                    onChange={(e) => handleInputChange(index, 'PartyMobile', e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange(index, "PartyMobile", e.target.value)
+                    }
                     className="border p-2 w-full"
+                    disabled={submittedRows[index]}
                   />
                 </td>
                 <td className="py-2 px-4 border-b">
                   <input
                     type="text"
                     value={request.Reason}
-                    onChange={(e) => handleInputChange(index, 'Reason', e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange(index, "Reason", e.target.value)
+                    }
                     className="border p-2 w-full"
+                    disabled={submittedRows[index]}
                   />
                 </td>
                 <td className="py-2 px-4 border-b">
                   <input
                     type="text"
                     value={request.PurchaseOrder}
-                    onChange={(e) => handleInputChange(index, 'PurchaseOrder', e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange(index, "PurchaseOrder", e.target.value)
+                    }
                     className="border p-2 w-full"
+                    disabled={submittedRows[index]}
                   />
                 </td>
                 <td className="py-2 px-4 border-b">
                   <input
                     type="number"
                     value={request.TotalOrderAmount}
-                    onChange={(e) => handleInputChange(index, 'TotalOrderAmount', e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange(
+                        index,
+                        "TotalOrderAmount",
+                        e.target.value
+                      )
+                    }
                     className="border p-2 w-full"
+                    disabled={submittedRows[index]}
                   />
                 </td>
                 <td className="py-2 px-4 border-b">
                   <select
                     value={request.DocumentType}
-                    onChange={(e) => handleInputChange(index, 'DocumentType', e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange(index, "DocumentType", e.target.value)
+                    }
                     className="border p-2 w-full"
+                    disabled={submittedRows[index]}
                   >
                     <option value="">Select Document Type</option>
                     <option value="INVOICE">INVOICE</option>
@@ -585,184 +1004,338 @@ const NewAssetDisbursement: React.FC = () => {
                   <input
                     type="text"
                     value={request.PartyDocumentNumber}
-                    onChange={(e) => handleInputChange(index, 'PartyDocumentNumber', e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange(
+                        index,
+                        "PartyDocumentNumber",
+                        e.target.value
+                      )
+                    }
                     className="border p-2 w-full"
+                    disabled={submittedRows[index]}
                   />
                 </td>
                 <td className="py-2 px-4 border-b">
                   <input
                     type="date"
                     value={request.PartyDocumentDate}
-                    onChange={(e) => handleInputChange(index, 'PartyDocumentDate', e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange(
+                        index,
+                        "PartyDocumentDate",
+                        e.target.value
+                      )
+                    }
                     className="border p-2 w-full"
+                    disabled={submittedRows[index]}
                   />
                 </td>
                 <td className="py-2 px-4 border-b">
                   <input
                     type="number"
                     value={request.PartyDocumentPayableDays}
-                    onChange={(e) => handleInputChange(index, 'PartyDocumentPayableDays', e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange(
+                        index,
+                        "PartyDocumentPayableDays",
+                        e.target.value
+                      )
+                    }
                     className="border p-2 w-full"
+                    disabled={submittedRows[index]}
                   />
                 </td>
                 <td className="py-2 px-4 border-b">
                   <input
                     type="number"
                     value={request.PartyDocumentAmount}
-                    onChange={(e) => handleInputChange(index, 'PartyDocumentAmount', e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange(
+                        index,
+                        "PartyDocumentAmount",
+                        e.target.value
+                      )
+                    }
                     className="border p-2 w-full"
+                    disabled={submittedRows[index]}
                   />
                 </td>
                 <td className="py-2 px-4 border-b">
                   <input
                     type="number"
                     value={request.PartyDocumentGSTAmount}
-                    onChange={(e) => handleInputChange(index, 'PartyDocumentGSTAmount', e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange(
+                        index,
+                        "PartyDocumentGSTAmount",
+                        e.target.value
+                      )
+                    }
                     className="border p-2 w-full"
+                    disabled={submittedRows[index]}
                   />
                 </td>
                 <td className="py-2 px-4 border-b">
-                  <span className="block p-2 w-full">{request.PartyDocumentTotalAmount}</span>
+                  <span className="block p-2 w-full">
+                    {request.PartyDocumentTotalAmount}
+                  </span>
                 </td>
                 <td className="py-2 px-4 border-b">
                   <input
                     type="number"
                     value={request.PartyTDSAmount}
-                    onChange={(e) => handleInputChange(index, 'PartyTDSAmount', e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange(index, "PartyTDSAmount", e.target.value)
+                    }
                     className="border p-2 w-full"
+                    disabled={submittedRows[index]}
                   />
                   {errors[index]?.PartyTDSAmount && (
-                    <span className="text-red-500 text-sm">{errors[index]?.PartyTDSAmount}</span>
+                    <span className="text-red-500 text-sm">
+                      {errors[index]?.PartyTDSAmount}
+                    </span>
                   )}
                 </td>
                 <td className="py-2 px-4 border-b">
                   <input
                     type="number"
                     value={request.PartyAdvanceAdjusted}
-                    onChange={(e) => handleInputChange(index, 'PartyAdvanceAdjusted', e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange(
+                        index,
+                        "PartyAdvanceAdjusted",
+                        e.target.value
+                      )
+                    }
                     className="border p-2 w-full"
+                    disabled={submittedRows[index]}
                   />
                   {errors[index]?.PartyAdvanceAdjusted && (
-                    <span className="text-red-500 text-sm">{errors[index]?.PartyAdvanceAdjusted}</span>
+                    <span className="text-red-500 text-sm">
+                      {errors[index]?.PartyAdvanceAdjusted}
+                    </span>
                   )}
                 </td>
                 <td className="py-2 px-4 border-b">
                   <input
                     type="number"
                     value={request.PartyRetentionAmount}
-                    onChange={(e) => handleInputChange(index, 'PartyRetentionAmount', e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange(
+                        index,
+                        "PartyRetentionAmount",
+                        e.target.value
+                      )
+                    }
                     className="border p-2 w-full"
+                    disabled={submittedRows[index]}
                   />
                   {errors[index]?.PartyRetentionAmount && (
-                    <span className="text-red-500 text-sm">{errors[index]?.PartyRetentionAmount}</span>
+                    <span className="text-red-500 text-sm">
+                      {errors[index]?.PartyRetentionAmount}
+                    </span>
                   )}
                 </td>
                 <td className="py-2 px-4 border-b">
                   <input
                     type="number"
                     value={request.PartyOtherDeductionAmount}
-                    onChange={(e) => handleInputChange(index, 'PartyOtherDeductionAmount', e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange(
+                        index,
+                        "PartyOtherDeductionAmount",
+                        e.target.value
+                      )
+                    }
                     className="border p-2 w-full"
+                    disabled={submittedRows[index]}
                   />
                   {errors[index]?.PartyOtherDeductionAmount && (
-                    <span className="text-red-500 text-sm">{errors[index]?.PartyOtherDeductionAmount}</span>
+                    <span className="text-red-500 text-sm">
+                      {errors[index]?.PartyOtherDeductionAmount}
+                    </span>
                   )}
                 </td>
                 <td className="py-2 px-4 border-b">
-                  <input
-                    type="number"
-                    value={request.PartyPayableAmount}
-                    onChange={(e) => handleInputChange(index, 'PartyPayableAmount', e.target.value)}
-                    className="border p-2 w-full"
-                  />
-                  {errors[index]?.PartyPayableAmount && (
-                    <span className="text-red-500 text-sm">{errors[index]?.PartyPayableAmount}</span>
-                  )}
+                  <span className="block p-2 w-full">
+                    {request.PartyPayableAmount}
+                  </span>
                 </td>
                 <td className="py-2 px-4 border-b">
                   <input
                     type="number"
                     value={request.PartyOutstandingAmount}
-                    onChange={(e) => handleInputChange(index, 'PartyOutstandingAmount', e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange(
+                        index,
+                        "PartyOutstandingAmount",
+                        e.target.value
+                      )
+                    }
                     className="border p-2 w-full"
+                    disabled={submittedRows[index]}
                   />
                   {errors[index]?.PartyOutstandingAmount && (
-                    <span className="text-red-500 text-sm">{errors[index]?.PartyOutstandingAmount}</span>
+                    <span className="text-red-500 text-sm">
+                      {errors[index]?.PartyOutstandingAmount}
+                    </span>
                   )}
                 </td>
                 <td className="py-2 px-4 border-b">
-                  <input
-                    type="text"
+                  <select
                     value={request.BorrowerAccountNumber}
-                    onChange={(e) => handleInputChange(index, 'BorrowerAccountNumber', e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange(
+                        index,
+                        "BorrowerAccountNumber",
+                        e.target.value
+                      )
+                    }
                     className="border p-2 w-full"
-                  />
+                    disabled={
+                      submittedRows[index] ||
+                      (accountNumbers[index].length === 0 &&
+                        dpAccountNumbers[index].length === 0)
+                    }
+                  >
+                    <option value="">Select Account Number</option>
+                    {accountNumbers[index].map((account, i) => {
+                      console.log(
+                        `Rendering ProjectAssetBankAccount[${index}][${i}]:`,
+                        account
+                      );
+                      return (
+                        <option
+                          key={`account-${i}-${account.AccountNumber}`}
+                          value={account.AccountNumber}
+                        >
+                          {account.AccountNumber}
+                        </option>
+                      );
+                    })}
+                    {dpAccountNumbers[index].map((account, i) => {
+                      console.log(
+                        `Rendering DpBankAccount[${index}][${i}]:`,
+                        account
+                      );
+                      return (
+                        <option
+                          key={`dp-account-${i}-${account.AccountNumber}`}
+                          value={account.AccountNumber}
+                        >
+                          {account.AccountNumber}
+                        </option>
+                      );
+                    })}
+                  </select>
                 </td>
                 <td className="py-2 px-4 border-b">
                   <input
                     type="text"
                     value={request.PartyBankName}
-                    onChange={(e) => handleInputChange(index, 'PartyBankName', e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange(index, "PartyBankName", e.target.value)
+                    }
                     className="border p-2 w-full"
+                    disabled={submittedRows[index]}
                   />
                 </td>
                 <td className="py-2 px-4 border-b">
                   <input
                     type="text"
                     value={request.PartyAccountName}
-                    onChange={(e) => handleInputChange(index, 'PartyAccountName', e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange(
+                        index,
+                        "PartyAccountName",
+                        e.target.value
+                      )
+                    }
                     className="border p-2 w-full"
+                    disabled={submittedRows[index]}
                   />
                 </td>
                 <td className="py-2 px-4 border-b">
                   <input
                     type="text"
                     value={request.PartyAccountNumber}
-                    onChange={(e) => handleInputChange(index, 'PartyAccountNumber', e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange(
+                        index,
+                        "PartyAccountNumber",
+                        e.target.value
+                      )
+                    }
                     className="border p-2 w-full"
+                    disabled={submittedRows[index]}
                   />
                 </td>
                 <td className="py-2 px-4 border-b">
                   <input
                     type="text"
                     value={request.PartyAccountIFSC}
-                    onChange={(e) => handleInputChange(index, 'PartyAccountIFSC', e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange(
+                        index,
+                        "PartyAccountIFSC",
+                        e.target.value
+                      )
+                    }
                     className="border p-2 w-full"
+                    disabled={submittedRows[index]}
                   />
                 </td>
                 <td className="py-2 px-4 border-b">
                   <input
                     type="text"
                     value={request.Status}
-                    onChange={(e) => handleInputChange(index, 'Status', e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange(index, "Status", e.target.value)
+                    }
                     className="border p-2 w-full"
+                    disabled={submittedRows[index]}
                   />
                 </td>
                 <td className="py-2 px-4 border-b">
                   <input
                     type="number"
                     value={request.ApprovedAmount}
-                    onChange={(e) => handleInputChange(index, 'ApprovedAmount', e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange(index, "ApprovedAmount", e.target.value)
+                    }
                     className="border p-2 w-full"
+                    disabled={submittedRows[index]}
                   />
                   {errors[index]?.ApprovedAmount && (
-                    <span className="text-red-500 text-sm">{errors[index]?.ApprovedAmount}</span>
+                    <span className="text-red-500 text-sm">
+                      {errors[index]?.ApprovedAmount}
+                    </span>
                   )}
                 </td>
                 <td className="py-2 px-4 border-b">
                   <input
                     type="number"
                     value={request.ReferenceDRNumber}
-                    onChange={(e) => handleInputChange(index, 'ReferenceDRNumber', e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange(
+                        index,
+                        "ReferenceDRNumber",
+                        e.target.value
+                      )
+                    }
                     className="border p-2 w-full"
+                    disabled={submittedRows[index]}
                   />
                 </td>
                 <td className="py-2 px-4 border-b">
                   <input
                     type="text"
                     value={request.Remarks}
-                    onChange={(e) => handleInputChange(index, 'Remarks', e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange(index, "Remarks", e.target.value)
+                    }
                     className="border p-2 w-full"
+                    disabled={submittedRows[index]}
                   />
                 </td>
                 <td className="py-2 px-4 border-b">
@@ -773,10 +1346,15 @@ const NewAssetDisbursement: React.FC = () => {
                       className="hidden"
                       multiple
                       onChange={(e) => handleFileChange(index, e)}
+                      disabled={submittedRows[index]}
                     />
                     <label
                       htmlFor={`file-input-${index}`}
-                      className="cursor-pointer text-2xl text-gray-600"
+                      className={`cursor-pointer text-2xl text-gray-600 ${
+                        submittedRows[index]
+                          ? "opacity-50 cursor-not-allowed"
+                          : ""
+                      }`}
                     >
                       +
                     </label>
@@ -790,7 +1368,10 @@ const NewAssetDisbursement: React.FC = () => {
                             {getFileIcon(type)}
                             <button
                               onClick={() => handleRemoveFile(index, fileIndex)}
-                              className="absolute -top-2 -right-2 text-red-500 text-lg"
+                              className={`absolute -top-2 -right-2 text-red-500 text-lg ${
+                                submittedRows[index] ? "hidden" : ""
+                              }`}
+                              disabled={submittedRows[index]}
                             >
                               <IoClose />
                             </button>
@@ -807,9 +1388,11 @@ const NewAssetDisbursement: React.FC = () => {
                   <button
                     onClick={() => handleSubmit(index)}
                     className={`py-2 px-4 rounded text-white flex items-center justify-center ${
-                      loading[index] ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-500 hover:bg-blue-600'
+                      loading[index] || submittedRows[index]
+                        ? "bg-gray-400 cursor-not-allowed"
+                        : "bg-blue-500 hover:bg-blue-600"
                     }`}
-                    disabled={loading[index]}
+                    disabled={loading[index] || submittedRows[index]}
                   >
                     {loading[index] ? (
                       <>
@@ -835,8 +1418,10 @@ const NewAssetDisbursement: React.FC = () => {
                         </svg>
                         Submitting...
                       </>
+                    ) : submittedRows[index] ? (
+                      "Submitted"
                     ) : (
-                      'Submit'
+                      "Submit"
                     )}
                   </button>
                 </td>
@@ -845,7 +1430,10 @@ const NewAssetDisbursement: React.FC = () => {
           </tbody>
         </table>
       </div>
-      <button onClick={addRows} className="bg-green-500 text-white py-2 px-4 rounded mb-4">
+      <button
+        onClick={addRows}
+        className="bg-green-500 text-white py-2 px-4 rounded mb-4"
+      >
         Add 10 more rows
       </button>
     </div>

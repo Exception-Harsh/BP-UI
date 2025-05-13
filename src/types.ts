@@ -198,3 +198,15 @@ export interface ProjectHeader {
   remarks: string;
   userName: string;
 }
+
+export interface MaxFdsbNumberResponse {
+  maxFdsbNumber: number;
+}
+
+export interface ProjectAssetBankAccount {
+  AccountNumber: string;
+}
+
+export interface DpBankAccount {
+  AccountNumber: string;
+}

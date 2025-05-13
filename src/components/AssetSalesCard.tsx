@@ -1,10 +1,8 @@
 import { useState, useEffect } from "react";
-import { AssetSale } from "../types";
+import { AssetSale, ApprovalWorkflow } from "../types";
 import endpoints from "../endpoints";
-import { ApprovalWorkflow } from "../types";
 import { IoCheckmarkCircle, IoCloseCircle } from 'react-icons/io5';
 
-// Define an interface for the column names mapping
 interface ColumnNames {
   [key: string]: string;
 }
@@ -21,12 +19,18 @@ interface NotificationProps {
   style?: React.CSSProperties;
 }
 
+interface AssetSalesComponentProps {
+  isDarkMode: boolean;
+  submissionSuccessful: boolean;
+  setSubmissionSuccessful: (status: boolean) => void;
+}
+
 const Notification: React.FC<NotificationProps> = ({ notification, onDismiss, style }) => {
   const [progress, setProgress] = useState(0);
 
   useEffect(() => {
-    const duration = 3000; // 3 seconds
-    const interval = 50; // Update every 50ms
+    const duration = 3000;
+    const interval = 50;
     const steps = duration / interval;
     let currentStep = 0;
 
@@ -45,7 +49,7 @@ const Notification: React.FC<NotificationProps> = ({ notification, onDismiss, st
   return (
     <div
       className={`fixed top-4 right-4 w-80 p-4 rounded-lg shadow-lg flex items-center space-x-3 z-50 ${
-        notification.type === 'success' ? 'bg-[#39CAA1] text-white' : 'bg-[#EF7641] text-white'
+        notification.type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
       }`}
       style={style}
     >
@@ -67,9 +71,9 @@ const Notification: React.FC<NotificationProps> = ({ notification, onDismiss, st
 
 export default function AssetSalesComponent({
   isDarkMode,
-}: {
-  isDarkMode: boolean;
-}) {
+  submissionSuccessful,
+  setSubmissionSuccessful
+}: AssetSalesComponentProps) {
   const [data, setData] = useState<AssetSale[]>([]);
   const [buildings, setBuildings] = useState<string[]>([]);
   const [selectedAssetNumber, setSelectedAssetNumber] = useState<string>("");
@@ -85,48 +89,53 @@ export default function AssetSalesComponent({
   const [buildingMap, setBuildingMap] = useState<{ [key: string]: string }>({});
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [workflowStatus, setWorkflowStatus] = useState<string | null>(null);
+  const [rejectionReason, setRejectionReason] = useState<string>("");
+  const [showRejectPopup, setShowRejectPopup] = useState<boolean>(false);
+  const [rejectInput, setRejectInput] = useState<string>("");
   const userRole = localStorage.getItem("role");
 
-  // Helper function to map UnitType to display labels
   const getUnitTypeLabel = (unitType: string | null | undefined): string => {
     switch (unitType) {
-      case 'S':
-        return 'Shop';
-      case 'P':
-        return 'Parking';
-      case 'R':
-        return 'Residential';
-      default:
-        return unitType || '';
+      case 'S': return 'Shop';
+      case 'P': return 'Parking';
+      case 'R': return 'Residential';
+      default: return unitType || '';
     }
   };
 
-  // Helper function to map backend codes to display labels
+  const monthNames = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
+
+  const formatYearMonth = (yearMonth: string | any[]) => {
+    if (typeof yearMonth !== 'string') {
+      console.error("yearMonth is not a string:", yearMonth);
+      return "";
+    }
+
+    const year = yearMonth.slice(0, 4);
+    const month = yearMonth.slice(4, 6);
+    return `${monthNames[parseInt(month, 10) - 1]} ${year}`;
+  };
+
   const mapToDisplayLabel = (field: string, value: string | null | undefined): string => {
     if (!value) return "";
     if (field === "SourceOfCustomer") {
       switch (value.trim()) {
-        case "D":
-          return "Direct";
-        case "C":
-          return "Channel Partners (CP)";
-        case "O":
-          return "Others";
-        default:
-          return value;
+        case "D": return "Direct";
+        case "C": return "Channel Partners (CP)";
+        case "O": return "Others";
+        default: return value;
       }
     } else if (field === "ModeOfFinance") {
       switch (value.trim()) {
-        case "S":
-          return "Self";
-        case "L":
-          return "Loan";
-        case "F":
-          return "Financial Institution";
-        case "O":
-          return "Others";
-        default:
-          return value;
+        case "S": return "Self";
+        case "L": return "Loan";
+        case "F": return "Financial Institution";
+        case "O": return "Others";
+        default: return value;
       }
     }
     return value;
@@ -178,16 +187,11 @@ export default function AssetSalesComponent({
     AgreementDate: "Agreement Date",
   };
 
-  // Initialize yearMonth and projectNumber from localStorage if available
   useEffect(() => {
     const storedYearMonth = localStorage.getItem("yearMonth");
     const storedProjectNumber = localStorage.getItem("projectNumber");
-    if (storedYearMonth) {
-      setYearMonth(storedYearMonth);
-    }
-    if (storedProjectNumber) {
-      setProjectNumber(storedProjectNumber);
-    }
+    if (storedYearMonth) setYearMonth(storedYearMonth);
+    if (storedProjectNumber) setProjectNumber(storedProjectNumber);
   }, []);
 
   useEffect(() => {
@@ -198,26 +202,21 @@ export default function AssetSalesComponent({
 
     fetch(url)
       .then((response) => {
-        if (!response.ok) {
-          throw new Error(`HTTP error! Status: ${response.status}`);
-        }
+        if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
         return response.json();
       })
       .then((fetchedData) => {
         console.log("API Response (Buildings):", fetchedData);
         if (fetchedData && Array.isArray(fetchedData.buildings)) {
-          // Extract distinct building names
           const buildingNames = fetchedData.buildings.map((building: any) => building.buildingName);
           setBuildings(buildingNames);
 
-          // Create a map of buildingName to assetNumber
           const map: { [key: string]: string } = {};
           fetchedData.buildings.forEach((building: any) => {
             map[building.buildingName] = building.assetNumber;
           });
           setBuildingMap(map);
 
-          // Save buildings data to localStorage with correct mapping
           const buildingsData = fetchedData.buildings.map((building: any) => ({
             asm_bldng_v: building.buildingName,
             asm_asst_nmbr_n: building.assetNumber,
@@ -235,25 +234,79 @@ export default function AssetSalesComponent({
       });
   }, [projectNumber, yearMonth]);
 
+  const checkWorkflowStatus = async () => {
+    if (!projectNumber || !yearMonth || !userRole) return;
+
+    const url = `${endpoints.workflowCheck}${projectNumber}/${yearMonth}/${userRole}`;
+    console.log("Checking workflow status from URL:", url);
+
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Workflow status fetch failed:", response.status, errorText);
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+      const result = await response.json();
+      console.log("Workflow status response:", result);
+      setWorkflowStatus(result.status === "null" ? null : result.status);
+      setRejectionReason(result.comment && result.comment !== "null" ? result.comment : "");
+      // Reset submissionSuccessful if not fully approved
+      if (result.status !== "A" || userRole !== "Arbour") {
+        setSubmissionSuccessful(false);
+      }
+    } catch (error) {
+      console.error("Error checking workflow status:", error, "URL:", url);
+      setWorkflowStatus(null);
+      setRejectionReason("");
+      addNotification("Failed to fetch workflow status.", "error");
+    }
+  };
+
   useEffect(() => {
-    if (!projectNumber || !selectedAssetNumber || !yearMonth) {
+    if (projectNumber && yearMonth && userRole) {
+      checkWorkflowStatus();
+    } else {
+      setWorkflowStatus(null);
+      setRejectionReason("");
+    }
+  }, [projectNumber, yearMonth, userRole]);
+
+  useEffect(() => {
+    if (!projectNumber || !selectedAssetNumber || !yearMonth || !userRole) return;
+
+    // Determine if data should be fetched based on role and workflow status
+    let shouldFetchData = false;
+    if (userRole === "Borrower") {
+      // Borrower can view data when status is null or rejected
+      shouldFetchData = workflowStatus === null || workflowStatus === "R";
+    } else if (userRole === "PME") {
+      // PME can view data when Borrower has submitted (status = "0")
+      shouldFetchData = workflowStatus === "0";
+    } else if (userRole === "Arbour") {
+      // Arbour can view data when PME has approved (status = "A")
+      shouldFetchData = workflowStatus === "A";
+    }
+
+    if (!shouldFetchData) {
+      setData([]);
       return;
     }
 
     let url = `${endpoints.sales}dataByAsset/${projectNumber}/${yearMonth}/${selectedAssetNumber}`;
+    if (userRole === "PME" || userRole === "Arbour") {
+      url = `${endpoints.sales}updatedDataByAsset/${projectNumber}/${yearMonth}/${selectedAssetNumber}`;
+    }
     console.log("Fetching data from:", url);
 
     fetch(url)
       .then((response) => {
-        if (!response.ok) {
-          throw new Error(`HTTP error! Status: ${response.status}`);
-        }
+        if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
         return response.json();
       })
       .then((fetchedData) => {
         console.log("API Response (Data):", fetchedData);
         if (Array.isArray(fetchedData.data)) {
-          // Map SourceOfCustomer and ModeOfFinance to display labels
           const mappedData = fetchedData.data.map((row: AssetSale) => ({
             ...row,
             SourceOfCustomer: mapToDisplayLabel("SourceOfCustomer", row.SourceOfCustomer),
@@ -268,10 +321,10 @@ export default function AssetSalesComponent({
       .catch((error) => {
         console.error("Error fetching asset sales data:", error);
         setData([]);
+        addNotification("Failed to fetch asset sales data.", "error");
       });
-  }, [projectNumber, selectedAssetNumber, yearMonth]);
+  }, [projectNumber, selectedAssetNumber, yearMonth, workflowStatus, userRole]);
 
-  // Reset data when selectedAssetNumber changes
   useEffect(() => {
     setData([]);
     setUnitNumbers([]);
@@ -294,6 +347,12 @@ export default function AssetSalesComponent({
     key: string,
     value: string | number | boolean
   ) => {
+    // Allow editing only for Borrowers when status is null or "R"
+    if (
+      userRole === "Borrower" && workflowStatus !== null && workflowStatus !== "R"
+    ) {
+      return;
+    }
     if (["Arbour", "PME", "Trustee"].includes(userRole || "")) {
       return;
     }
@@ -301,7 +360,6 @@ export default function AssetSalesComponent({
     const updatedData = [...data];
     updatedData[index] = { ...updatedData[index], [key]: value };
 
-    // Clear associated fields if checkboxes are unchecked
     if (key === "SoldFlag" && value === "N") {
       [
         "SalesBasePrice",
@@ -367,7 +425,6 @@ export default function AssetSalesComponent({
       });
     }
 
-    // Validate input values for numeric fields
     if (
       key.includes("BasePrice") ||
       key.includes("StampDuty") ||
@@ -397,7 +454,6 @@ export default function AssetSalesComponent({
       }
     }
 
-    // Validation: StampDuty, Registration, OtherCharges, PassThrough, Taxes < BasePrice
     const prefixes = ["Sales", "Demand", "Received"];
     prefixes.forEach((prefix) => {
       const basePriceKey = `${prefix}BasePrice`;
@@ -429,7 +485,6 @@ export default function AssetSalesComponent({
       });
     });
 
-    // Validation: DemandBasePrice <= SalesBasePrice
     if (key === "DemandBasePrice" || key === "SalesBasePrice") {
       const demandBasePrice = parseFloat(updatedData[index]["DemandBasePrice"]) || 0;
       const salesBasePrice = parseFloat(updatedData[index]["SalesBasePrice"]) || 0;
@@ -447,7 +502,6 @@ export default function AssetSalesComponent({
       }
     }
 
-    // Validation: ReceivedBasePrice <= DemandBasePrice
     if (key === "ReceivedBasePrice" || key === "DemandBasePrice") {
       const receivedBasePrice = parseFloat(updatedData[index]["ReceivedBasePrice"]) || 0;
       const demandBasePrice = parseFloat(updatedData[index]["DemandBasePrice"]) || 0;
@@ -465,10 +519,8 @@ export default function AssetSalesComponent({
       }
     }
 
-    // Update the state with the new data
     setData(updatedData);
 
-    // Add only the currently modified row to updatedRows
     const existingRowIndex = updatedRows.findIndex(
       (row) => row.UniqueUnitNumber === updatedData[index].UniqueUnitNumber
     );
@@ -503,7 +555,6 @@ export default function AssetSalesComponent({
       return;
     }
 
-    // Check if any errors exist
     if (Object.keys(inputErrors).length > 0) {
       addNotification("Error Saving Data", "error");
       return;
@@ -511,33 +562,23 @@ export default function AssetSalesComponent({
 
     setIsSaving(true);
 
-    // Map SourceOfCustomer and ModeOfFinance values for backend
     const mappedRows = updatedRows.map(row => ({
       ...row,
       SourceOfCustomer: row.SourceOfCustomer ? (() => {
         switch (row.SourceOfCustomer.trim()) {
-          case "Direct":
-            return "D";
-          case "Channel Partners (CP)":
-            return "C";
-          case "Others":
-            return "O";
-          default:
-            return row.SourceOfCustomer;
+          case "Direct": return "D";
+          case "Channel Partners (CP)": return "C";
+          case "Others": return "O";
+          default: return row.SourceOfCustomer;
         }
       })() : null,
       ModeOfFinance: row.ModeOfFinance ? (() => {
         switch (row.ModeOfFinance.trim()) {
-          case "Self":
-            return "S";
-          case "Loan":
-            return "L";
-          case "Financial Institution":
-            return "F";
-          case "Others":
-            return "O";
-          default:
-            return row.ModeOfFinance;
+          case "Self": return "S";
+          case "Loan": return "L";
+          case "Financial Institution": return "F";
+          case "Others": return "O";
+          default: return row.ModeOfFinance;
         }
       })() : null,
     }));
@@ -603,6 +644,8 @@ export default function AssetSalesComponent({
         const result = await response.json();
         console.log("Submit successful", result);
         addNotification("Submit successful!", "success");
+        setSubmissionSuccessful(true);
+        await checkWorkflowStatus();
       }
     } catch (error) {
       console.error("Error submitting approval workflow:", error);
@@ -623,7 +666,7 @@ export default function AssetSalesComponent({
 
     const requestBody: ApprovalWorkflow = {
       statusFlag: 'A',
-      workflowComment: "Approved by PME/Arbour",
+      workflowComment: `Approved by ${userRole}`,
       username: username,
     };
 
@@ -644,6 +687,19 @@ export default function AssetSalesComponent({
         const result = await response.json();
         console.log("Approval successful", result);
         addNotification("Approval successful!", "success");
+        if (userRole === "Arbour") {
+          // Update approval flag in header table
+          await fetch(
+            `${endpoints.updateProjecthdr}/${projectNumber}/${yearMonth}`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ UserName: username }),
+            }
+          );
+          setSubmissionSuccessful(true);
+        }
+        await checkWorkflowStatus();
       }
     } catch (error) {
       console.error("Error approving workflow:", error);
@@ -658,13 +714,18 @@ export default function AssetSalesComponent({
       return;
     }
 
+    if (["Arbour", "PME"].includes(userRole || "")) {
+      setShowRejectPopup(true);
+      return;
+    }
+
     const credentials = localStorage.getItem("rememberedCredentials");
     const parsedCredentials = credentials ? JSON.parse(credentials) : null;
     const username = parsedCredentials?.username ?? "";
 
     const requestBody: ApprovalWorkflow = {
       statusFlag: 'R',
-      workflowComment: "Rejected by PME/Arbour",
+      workflowComment: `Rejected by ${userRole}`,
       username: username,
     };
 
@@ -685,11 +746,67 @@ export default function AssetSalesComponent({
         const result = await response.json();
         console.log("Rejection successful", result);
         addNotification("Rejection successful!", "success");
+        await checkWorkflowStatus();
       }
     } catch (error) {
       console.error("Error rejecting workflow:", error);
       addNotification("Rejection failed. Check console for details.", "error");
     }
+  };
+
+  const handleRejectConfirm = async () => {
+    if (!projectNumber || !yearMonth) {
+      console.error("Project number or year-month is missing.");
+      addNotification("Rejection failed. Check console for details.", "error");
+      setShowRejectPopup(false);
+      return;
+    }
+
+    if (!rejectInput.trim()) {
+      addNotification("Please enter a reason for rejection.", "error");
+      return;
+    }
+
+    const credentials = localStorage.getItem("rememberedCredentials");
+    const parsedCredentials = credentials ? JSON.parse(credentials) : null;
+    const username = parsedCredentials?.username ?? "";
+
+    const requestBody: ApprovalWorkflow = {
+      statusFlag: 'R',
+      workflowComment: rejectInput,
+      username: username,
+    };
+
+    try {
+      const response = await fetch(
+        `${endpoints.workflow}${projectNumber}/${yearMonth}/${userRole}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(requestBody),
+        }
+      );
+
+      if (!response.ok) {
+        console.error("Failed to reject workflow");
+        addNotification("Rejection failed. Please try again.", "error");
+      } else {
+        const result = await response.json();
+        console.log("Rejection successful", result);
+        addNotification("Rejection successful!", "success");
+        setShowRejectPopup(false);
+        setRejectInput("");
+        await checkWorkflowStatus();
+      }
+    } catch (error) {
+      console.error("Error rejecting workflow:", error);
+      addNotification("Rejection failed. Check console for details.", "error");
+    }
+  };
+
+  const handleRejectCancel = () => {
+    setShowRejectPopup(false);
+    setRejectInput("");
   };
 
   const filteredData = data.filter((row) => {
@@ -701,6 +818,78 @@ export default function AssetSalesComponent({
       (soldFlag ? row.SoldFlag?.trim().toUpperCase() === "Y" : true)
     );
   });
+
+  // Check if data is fully approved (after Arbour's approval)
+  const isFullyApproved = submissionSuccessful && userRole === "Arbour" && workflowStatus === "A";
+
+  // Check if Borrower has not submitted data
+  const isDataNotSubmitted = (userRole === "PME" || userRole === "Arbour") && workflowStatus === null;
+
+  // Check if approval is pending from PME for Arbour
+  const isPmeApprovalPending = userRole === "Arbour" && workflowStatus === "0";
+
+  // Check if Borrower has submitted data
+  const isBorrowerSubmitted = userRole === "Borrower" && workflowStatus === "0";
+
+  if (isFullyApproved) {
+    return (
+      <div className={`p-6 rounded-lg relative ${isDarkMode ? "bg-gray-900 text-white" : "bg-white text-black"}`}>
+        <p className="text-green-600 text-xl font-bold mb-4">
+          Sales data for the month of {formatYearMonth(yearMonth)} has been successfully approved.
+        </p>
+      </div>
+    );
+  }
+
+  if (isDataNotSubmitted) {
+    return (
+      <div className={`p-6 rounded-lg relative ${isDarkMode ? "bg-gray-900 text-white" : "bg-white text-black"}`}>
+        <p className="text-yellow-600 text-xl font-bold mb-4">
+          Sales data for the month of {formatYearMonth(yearMonth)} has not been submitted.
+        </p>
+      </div>
+    );
+  }
+
+  if (isPmeApprovalPending) {
+    return (
+      <div className={`p-6 rounded-lg relative ${isDarkMode ? "bg-gray-900 text-white" : "bg-white text-black"}`}>
+        <p className="text-yellow-600 text-xl font-bold mb-4">
+          Approval pending from PME for the month of {formatYearMonth(yearMonth)}.
+        </p>
+      </div>
+    );
+    }
+
+  if (isBorrowerSubmitted) {
+    return (
+      <div className={`p-6 rounded-lg relative ${isDarkMode ? "bg-gray-900 text-white" : "bg-white text-black"}`}>
+        <p className="text-green-600 text-xl font-bold mb-2 text-center">
+          Sales Data for the month of {formatYearMonth(yearMonth)} has been submitted successfully
+        </p>
+        <p className="text-yellow-600 font-bold text-lg mb-4 text-center">
+          (Approval from PME and Arbour Pending)
+        </p>
+      </div>
+    );
+  }
+
+  // Check if user has permission to view data
+  const canViewData = (
+    (userRole === "Borrower" && (workflowStatus === null || workflowStatus === "R")) ||
+    (userRole === "PME" && workflowStatus === "0") ||
+    (userRole === "Arbour" && workflowStatus === "A")
+  );
+
+  if (!canViewData) {
+    return (
+      <div className={`p-6 rounded-lg relative ${isDarkMode ? "bg-gray-900 text-white" : "bg-white text-black"}`}>
+        <p className="text-yellow-600 text-xl font-bold mb-4">
+          You do not have permission to view or edit data at this stage.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -719,7 +908,12 @@ export default function AssetSalesComponent({
         ))}
       </div>
 
-      {/* Inline Building Selection, Search Box, and Sold Flag Checkbox */}
+      {workflowStatus === "R" && userRole === "Borrower" && rejectionReason && (
+        <div className="text-center text-red-600 text-xl font-bold mb-4">
+          Submission rejected. Reason: {rejectionReason}
+        </div>
+      )}
+
       <div className="mb-4 flex items-center">
         <div className="flex items-center mr-4">
           <label htmlFor="building" className="mr-2">
@@ -766,7 +960,7 @@ export default function AssetSalesComponent({
             <span className="mx-2">|</span>
             <div className="flex items-center">
               <label htmlFor="soldFlag" className="mr-2">
-                Sold:
+                Filter by Sold/Unsold:
               </label>
               <input
                 type="checkbox"
@@ -784,6 +978,10 @@ export default function AssetSalesComponent({
         const salesTotal = calculateTotal(row, "Sales");
         const demandTotal = calculateTotal(row, "Demand");
         const receivedTotal = calculateTotal(row, "Received");
+        // Determine if fields should be disabled
+        const isDisabled =
+          (userRole === "Borrower" && workflowStatus !== null && workflowStatus !== "R") ||
+          ["Arbour", "PME", "Trustee"].includes(userRole || "");
 
         return (
           <div
@@ -806,6 +1004,7 @@ export default function AssetSalesComponent({
                     )
                   }
                   className="mr-2"
+                  disabled={isDisabled}
                 />
               </div>
             </div>
@@ -868,6 +1067,7 @@ export default function AssetSalesComponent({
                             "SalesRegistrationAmount",
                           ].includes(colName)}
                           className="p-1 border rounded text-black"
+                          disabled={isDisabled}
                         />
                         {inputErrors[`${rowIndex}-${colName}`] && (
                           <span className="text-red-500 text-xs">
@@ -908,6 +1108,7 @@ export default function AssetSalesComponent({
                             )
                           }
                           className="p-1 border rounded text-black"
+                          disabled={isDisabled}
                         />
                         {inputErrors[`${rowIndex}-${colName}`] && (
                           <span className="text-red-500 text-xs">
@@ -948,6 +1149,7 @@ export default function AssetSalesComponent({
                             )
                           }
                           className="p-1 border rounded text-black"
+                          disabled={isDisabled}
                         />
                         {inputErrors[`${rowIndex}-${colName}`] && (
                           <span className="text-red-500 text-xs">
@@ -976,6 +1178,7 @@ export default function AssetSalesComponent({
                         )
                       }
                       className="mr-2"
+                      disabled={isDisabled}
                     />
                   </div>
                   {row.RegisteredFlag?.trim().toUpperCase() === "Y" && (
@@ -1002,6 +1205,7 @@ export default function AssetSalesComponent({
                         }
                         required
                         className="p-1 border rounded text-black w-40"
+                        disabled={isDisabled}
                       />
                       {inputErrors[`${rowIndex}-RegistrationDate`] && (
                         <span className="text-red-500 text-xs">
@@ -1036,6 +1240,7 @@ export default function AssetSalesComponent({
                             handleChange(rowIndex, colName, e.target.value)
                           }
                           className="p-1 border rounded text-black"
+                          disabled={isDisabled}
                         />
                       </div>
                     ))}
@@ -1058,6 +1263,7 @@ export default function AssetSalesComponent({
                         }
                         required
                         className="p-1 border rounded text-black"
+                        disabled={isDisabled}
                       />
                     </div>
                     <div className="col-span-3 flex flex-col">
@@ -1077,6 +1283,7 @@ export default function AssetSalesComponent({
                         }
                         required
                         className="p-1 border rounded text-black"
+                        disabled={isDisabled}
                       />
                     </div>
 
@@ -1101,6 +1308,7 @@ export default function AssetSalesComponent({
                           }
                           required
                           className="p-1 border rounded text-black"
+                          disabled={isDisabled}
                         />
                       </div>
                     ))}
@@ -1118,6 +1326,7 @@ export default function AssetSalesComponent({
                         handleChange(rowIndex, "SourceOfCustomer", e.target.value)
                       }
                       className="p-1 border rounded text-black w-48"
+                      disabled={isDisabled}
                     >
                       <option value="">Select</option>
                       <option value="Direct">Direct</option>
@@ -1146,6 +1355,7 @@ export default function AssetSalesComponent({
                             }
                             required
                             className="p-1 border rounded text-black w-40"
+                            disabled={isDisabled}
                           />
                           {inputErrors[`${rowIndex}-${key}`] && (
                             <span className="text-red-500 text-xs">
@@ -1169,6 +1379,7 @@ export default function AssetSalesComponent({
                         handleChange(rowIndex, "ModeOfFinance", e.target.value)
                       }
                       className="p-1 border rounded text-black w-48"
+                      disabled={isDisabled}
                     >
                       <option value="">Select</option>
                       <option value="Self">Self</option>
@@ -1197,6 +1408,7 @@ export default function AssetSalesComponent({
                         }
                         required
                         className="p-1 border rounded text-black w-40"
+                        disabled={isDisabled}
                       />
                       {inputErrors[`${rowIndex}-FinancialInstitutionName`] && (
                         <span className="text-red-500 text-xs">
@@ -1221,6 +1433,7 @@ export default function AssetSalesComponent({
                         )
                       }
                       className="mr-2"
+                      disabled={isDisabled}
                     />
                   </div>
                   {row.NcIssuedFlag?.trim().toUpperCase() === "Y" && (
@@ -1237,6 +1450,7 @@ export default function AssetSalesComponent({
                         }
                         required
                         className="p-1 border rounded text-black w-40"
+                        disabled={isDisabled}
                       />
                       {inputErrors[`${rowIndex}-NcNumber`] && (
                         <span className="text-red-500 text-xs">
@@ -1255,6 +1469,7 @@ export default function AssetSalesComponent({
                         handleChange(rowIndex, "PaymentPlanName", e.target.value)
                       }
                       className="p-1 border rounded text-black w-48"
+                      disabled={isDisabled}
                     >
                       <option value="">Select</option>
                       {Array.from({ length: 9 }, (_, i) => (
@@ -1281,6 +1496,7 @@ export default function AssetSalesComponent({
                       className={`p-1 border rounded text-black w-40 ${
                         row.BrokerageAmount === "" ? "border-red-500" : ""
                       }`}
+                      disabled={isDisabled}
                     />
                     {inputErrors[`${rowIndex}-BrokerageAmount`] && (
                       <span className="text-red-500 text-xs">
@@ -1295,7 +1511,36 @@ export default function AssetSalesComponent({
         );
       })}
 
-      {userRole === "Borrower" && selectedAssetNumber && (
+      {showRejectPopup && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className={`p-6 rounded-lg shadow-lg ${isDarkMode ? "bg-gray-800 text-white" : "bg-white text-black"}`}>
+            <h3 className="text-lg font-bold mb-4">Enter Reason for Rejection</h3>
+            <textarea
+              value={rejectInput}
+              onChange={(e) => setRejectInput(e.target.value)}
+              className={`w-full p-2 border rounded mb-4 ${isDarkMode ? "bg-gray-700 text-white" : "bg-gray-100 text-black"}`}
+              placeholder="Please provide the reason for rejection"
+              rows={4}
+            />
+            <div className="flex justify-end space-x-4">
+              <button
+                onClick={handleRejectCancel}
+                className="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleRejectConfirm}
+                className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded"
+              >
+                Submit
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {userRole === "Borrower" && selectedAssetNumber && (workflowStatus === null || workflowStatus === "R") && (
         <div
           className="flex justify-center items-center mt-4 p-4 border-t sticky bottom-0 left-0 right-0 h-12"
           style={{
@@ -1347,7 +1592,8 @@ export default function AssetSalesComponent({
         </div>
       )}
 
-      {(userRole === "Arbour" || userRole === "PME") && selectedAssetNumber && (
+      {(userRole === "PME" && selectedAssetNumber && workflowStatus === "0") ||
+       (userRole === "Arbour" && selectedAssetNumber && workflowStatus === "A" && !submissionSuccessful) ? (
         <div
           className="flex justify-between items-center mt-4 p-4 bg-white border-t sticky bottom-0 left-0 right-0"
           style={{
@@ -1363,12 +1609,12 @@ export default function AssetSalesComponent({
           </button>
           <button
             onClick={handleReject}
-            className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded"
+            className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded"
           >
             Reject
           </button>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

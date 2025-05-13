@@ -12,7 +12,14 @@ const endpoints = {
     disbursement: domain + "/assetdisbursement/insert",
     category: domain + "/categories",
     subcategory: domain + "/subcategories",
-    fileupload: domain + "/filetest/upload"
+    fileupload: domain + "/filetest/upload",
+    workflowStatus: domain + "/assetsales/workflow/status/",
+    workflowCheck: domain + "/assetsales/workflow/check/",
+    maxfdsbnumber: domain + "/filestorage/max-fdsb-number/",
+    approve: domain + "/assetsales/approve",
+    accntnum: domain + "/borrowerAccountNumber/",
+    dpaccntnum: domain + "/dpaccountnum/",
+    alldisbursements: domain + "/assetdisbursement/all"
 };
 
 export default endpoints;

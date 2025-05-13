@@ -59,7 +59,7 @@ export default function Dashboard() {
   const [yearMonth, setYearMonth] = useState("");
   const [remarks, setRemarks] = useState("");
   const [status, setStatus] = useState("");
-  const [updateStatus, setUpdateStatus] = useState("");
+  const [submissionSuccessful, setSubmissionSuccessful] = useState(false);
 
   useEffect(() => {
     localStorage.setItem("theme", isDarkMode ? "dark" : "light");
@@ -77,19 +77,14 @@ export default function Dashboard() {
         const response = await fetch(endpoints.yearmonth + `${projectId}/${role}`);
         if (response.ok) {
           const data = await response.json();
-
           if (data.nextYearMonth) {
-            // Insert occurred, use the new inserted month
             setYearMonth(data.nextYearMonth);
             localStorage.setItem("yearMonth", data.nextYearMonth);
           } else if (data.maxYearMonth) {
-            // No insert, use existing max
             setYearMonth(data.maxYearMonth);
             localStorage.setItem("yearMonth", data.maxYearMonth);
-
-            // Optional: handle info message from backend
             if (data.message) {
-              console.info(data.message); // or show in UI as a toast
+              console.info(data.message);
             }
           } else {
             console.warn("No YearMonth value returned in response.");
@@ -115,7 +110,6 @@ export default function Dashboard() {
         return;
       }
 
-      // Get the username from localStorage
       const credentials = localStorage.getItem("rememberedCredentials");
       const parsedCredentials = credentials ? JSON.parse(credentials) : null;
       const username = parsedCredentials?.username ?? "";
@@ -128,7 +122,7 @@ export default function Dashboard() {
 
       const requestBody = {
         UserName: username,
-        Remarks: remarks // Optional remarks
+        Remarks: remarks
       };
 
       try {
@@ -155,9 +149,8 @@ export default function Dashboard() {
       }
     };
 
-    // Call the insertHeader function when dependencies change
     insertHeader();
-  }, [projectId, yearMonth, remarks]); // Dependencies array
+  }, [projectId, yearMonth, remarks]);
 
   const handleLogout = () => {
     logout();
@@ -215,12 +208,16 @@ export default function Dashboard() {
               <h2 className="text-xl font-semibold mb-4">{menuItems.find((item) => item.id === activeSection)?.label}</h2>
               {activeSection === "sales" && (
                 <>
-                  {yearMonth && (
+                  {!submissionSuccessful && yearMonth && (
                     <div className="mt-4 flex gap-2">
-                      <h3 className="text-lg font-semibold">Sales data for the month  of {formatYearMonth(yearMonth)}</h3>
+                      <h3 className="text-lg font-semibold">Sales data for the month of {formatYearMonth(yearMonth)}</h3>
                     </div>
                   )}
-                  <AssetSalesComponent isDarkMode={isDarkMode} />
+                  <AssetSalesComponent
+                    isDarkMode={isDarkMode}
+                    submissionSuccessful={submissionSuccessful}
+                    setSubmissionSuccessful={setSubmissionSuccessful}
+                  />
                 </>
               )}
               {activeSection === "disbursement" && (
@@ -228,7 +225,7 @@ export default function Dashboard() {
                   <NewAssetDisbursement />
                 </>
               )}
-              {activeSection !== "sales" && activeSection !== "disbursement" && (
+              {activeSection !== "sales" && activeSection !== "disbursement" && activeSection !== "filetest" && (
                 <p>Displaying {menuItems.find((item) => item.id === activeSection)?.label} information for Project {projectId}</p>
               )}
             </div>
