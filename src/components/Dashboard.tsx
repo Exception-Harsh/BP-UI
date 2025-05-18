@@ -18,6 +18,7 @@ import {
   Moon,
   Menu,
 } from "lucide-react";
+import FetchedAssetDisbursement from "./FetchedAssetDisbursementRequest";
 
 const menuItems = [
   { id: "sales", label: "Asset Sales", icon: Tags },
@@ -222,7 +223,11 @@ export default function Dashboard() {
               )}
               {activeSection === "disbursement" && (
                 <>
-                  <NewAssetDisbursement />
+                  {role === "Borrower" ? (
+                    <NewAssetDisbursement />
+                  ) : (
+                    <FetchedAssetDisbursement />
+                  )}
                 </>
               )}
               {activeSection !== "sales" && activeSection !== "disbursement" && activeSection !== "filetest" && (

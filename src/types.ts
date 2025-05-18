@@ -205,8 +205,16 @@ export interface MaxFdsbNumberResponse {
 
 export interface ProjectAssetBankAccount {
   AccountNumber: string;
+  AccountType: string;
 }
 
 export interface DpBankAccount {
   AccountNumber: string;
+}
+
+export interface FileStorage {
+  Number: number;
+  FileName: string;
+  FileType: string;
+  FileData: string;
 }

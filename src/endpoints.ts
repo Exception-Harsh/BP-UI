@@ -19,7 +19,11 @@ const endpoints = {
     approve: domain + "/assetsales/approve",
     accntnum: domain + "/borrowerAccountNumber/",
     dpaccntnum: domain + "/dpaccountnum/",
-    alldisbursements: domain + "/assetdisbursement/all"
+    alldisbursements: domain + "/assetdisbursement/all",
+    filesByAttachmentReferences: domain + "/filestorage/files",
+    downloadFile: domain + "/filestorage/download",
+    // updateDisbursement: domain + "/assetdisbursement/update",
+
 };
 
 export default endpoints;

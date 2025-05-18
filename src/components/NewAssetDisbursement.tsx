@@ -7,7 +7,7 @@ import {
 } from "../types";
 import axios from "axios";
 import endpoints from "../endpoints";
-import { FaFilePdf, FaFileExcel, FaFile, } from "react-icons/fa";
+import { FaFilePdf, FaFileExcel, FaFile } from "react-icons/fa";
 import { IoClose, IoCheckmarkCircle, IoCloseCircle } from "react-icons/io5";
 
 interface Building {
@@ -53,11 +53,10 @@ const Notification: React.FC<NotificationProps> = ({
 
   return (
     <div
-      className={`fixed top-4 right-4 w-80 p-4 rounded-lg shadow-lg flex items-center space-x-3 z-50 ${
-        notification.type === "success"
-          ? "bg-green-500 text-white"
-          : "bg-red-500 text-white"
-      }`}
+      className={`fixed top-4 right-4 w-80 p-4 rounded-lg shadow-lg flex items-center space-x-3 z-50 ${notification.type === "success"
+        ? "bg-green-500 text-white"
+        : "bg-red-500 text-white"
+        }`}
     >
       {notification.type === "success" ? (
         <IoCheckmarkCircle className="text-2xl" />
@@ -108,8 +107,8 @@ const NewAssetDisbursement: React.FC = () => {
       PartyAccountName: "",
       PartyAccountNumber: "",
       PartyAccountIFSC: "",
-      Status: "",
-      ApprovedAmount: "",
+      Status: "0",
+      ApprovedAmount: "0",
       ReferenceDRNumber: "",
       Remarks: "",
       AttachmentReference: "",
@@ -148,12 +147,28 @@ const NewAssetDisbursement: React.FC = () => {
         ? parsedData
         : [parsedData];
       setBuildings(buildingsArray);
+      // Auto-select if only one building
+      if (buildingsArray.length === 1) {
+        setRequests((prev) =>
+          prev.map((req) => ({
+            ...req,
+            AssetNumber: buildingsArray[0].asm_asst_nmbr_n,
+          }))
+        );
+      }
     }
 
     const fetchCategories = async () => {
       try {
         const response = await axios.get(`${endpoints.category}`);
-        setCategories(response.data);
+        const fetchedCategories = response.data;
+        setCategories(fetchedCategories);
+        // Auto-select if only one category
+        if (fetchedCategories.length === 1) {
+          setRequests((prev) =>
+            prev.map((req) => ({ ...req, Category: fetchedCategories[0] }))
+          );
+        }
       } catch (error) {
         console.error("Error fetching categories:", error);
       }
@@ -188,6 +203,15 @@ const NewAssetDisbursement: React.FC = () => {
         );
 
         setSubCategories(subCategoryMap);
+        // Auto-select if only one subcategory for each category
+        setRequests((prev) =>
+          prev.map((req) => {
+            if (req.Category && subCategoryMap[req.Category]?.length === 1) {
+              return { ...req, SubCategory: subCategoryMap[req.Category][0] };
+            }
+            return req;
+          })
+        );
       } catch (error) {
         console.error("Error fetching subcategories:", error);
       }
@@ -236,6 +260,9 @@ const NewAssetDisbursement: React.FC = () => {
       const accounts: ProjectAssetBankAccount[] = response.data;
       console.log("Borrower accounts response:", accounts);
       if (accounts && accounts.length > 0) {
+        // Filter accounts to find the one with type "T" (Project Cost)
+        const projectCostAccount = accounts.find(account => account.AccountType === 'T');
+
         setAccountNumbers((prev) => {
           const newAccountNumbers = [...prev];
           newAccountNumbers[index] = accounts;
@@ -246,9 +273,13 @@ const NewAssetDisbursement: React.FC = () => {
           newDpAccountNumbers[index] = [];
           return newDpAccountNumbers;
         });
+
+        // Set the borrower account number to the Project Cost account if found, otherwise use the first account
         setRequests((prevRequests) => {
           const newRequests = [...prevRequests];
-          newRequests[index].BorrowerAccountNumber = "";
+          newRequests[index].BorrowerAccountNumber = projectCostAccount
+            ? projectCostAccount.AccountNumber
+            : accounts[0].AccountNumber;
           return newRequests;
         });
       } else {
@@ -307,7 +338,7 @@ const NewAssetDisbursement: React.FC = () => {
         });
         setRequests((prevRequests) => {
           const newRequests = [...prevRequests];
-          newRequests[index].BorrowerAccountNumber = "";
+          newRequests[index].BorrowerAccountNumber = accounts.length === 1 ? accounts[0].AccountNumber : "";
           return newRequests;
         });
       } else {
@@ -346,7 +377,7 @@ const NewAssetDisbursement: React.FC = () => {
   const calculatePayableAmount = (request: NewDisbursementRequest) => {
     const totalAmount =
       request.PartyDocumentTotalAmount === "" ||
-      isNaN(Number(request.PartyDocumentTotalAmount))
+        isNaN(Number(request.PartyDocumentTotalAmount))
         ? 0
         : Number(request.PartyDocumentTotalAmount);
     const tdsAmount =
@@ -355,17 +386,17 @@ const NewAssetDisbursement: React.FC = () => {
         : Number(request.PartyTDSAmount);
     const advanceAdjusted =
       request.PartyAdvanceAdjusted === "" ||
-      isNaN(Number(request.PartyAdvanceAdjusted))
+        isNaN(Number(request.PartyAdvanceAdjusted))
         ? 0
         : Number(request.PartyAdvanceAdjusted);
     const retentionAmount =
       request.PartyRetentionAmount === "" ||
-      isNaN(Number(request.PartyRetentionAmount))
+        isNaN(Number(request.PartyRetentionAmount))
         ? 0
         : Number(request.PartyRetentionAmount);
     const otherDeductionAmount =
       request.PartyOtherDeductionAmount === "" ||
-      isNaN(Number(request.PartyOtherDeductionAmount))
+        isNaN(Number(request.PartyOtherDeductionAmount))
         ? 0
         : Number(request.PartyOtherDeductionAmount);
 
@@ -384,6 +415,7 @@ const NewAssetDisbursement: React.FC = () => {
     value: string | number | Date | { file: File; name: string; type: string }[]
   ) => {
     const newRequests = [...requests];
+    const newErrors = [...errors];
 
     if (
       field === "ProjectNumber" ||
@@ -405,6 +437,23 @@ const NewAssetDisbursement: React.FC = () => {
       newRequests[index][field] = value as never;
     }
 
+    // Validate GSTIN and extract PAN if valid
+    if (field === "PartyGSTIN" && typeof value === "string") {
+      const gstinRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+      const gstin = value.trim();
+
+      if (gstin.length === 0) {
+        delete newErrors[index].PartyGSTIN;
+      } else if (!gstinRegex.test(gstin)) {
+        newErrors[index] = { ...newErrors[index], PartyGSTIN: "Invalid GSTIN format. It should be 15 characters long." };
+      } else {
+        delete newErrors[index].PartyGSTIN;
+        // Extract the first 10 characters from the GSTIN
+        const pan = gstin.substring(2, 12);
+        newRequests[index].PartyPAN = pan;
+      }
+    }
+
     const docAmount = newRequests[index].PartyDocumentAmount;
     const gstAmount = newRequests[index].PartyDocumentGSTAmount;
     newRequests[index].PartyDocumentTotalAmount =
@@ -414,6 +463,11 @@ const NewAssetDisbursement: React.FC = () => {
     newRequests[index].PartyPayableAmount = calculatePayableAmount(
       newRequests[index]
     ).toString();
+
+    // Set PartyOutstandingAmount to PartyPayableAmount by default
+    if (field !== "PartyOutstandingAmount") {
+      newRequests[index].PartyOutstandingAmount = newRequests[index].PartyPayableAmount;
+    }
 
     const projectNumber = localStorage.getItem("projectNumber");
     if (!projectNumber) {
@@ -507,8 +561,10 @@ const NewAssetDisbursement: React.FC = () => {
     }
 
     setRequests(newRequests);
+    setErrors(newErrors);
     validateAmounts(index);
   };
+
 
   const handleFileChange = (
     index: number,
@@ -540,7 +596,7 @@ const NewAssetDisbursement: React.FC = () => {
       return <FaFilePdf className="text-red-600 text-4xl" />;
     } else if (
       fileType ===
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
       fileType === "application/vnd.ms-excel"
     ) {
       return <FaFileExcel className="text-green-600 text-4xl" />;
@@ -647,6 +703,10 @@ const NewAssetDisbursement: React.FC = () => {
         ...requests[index],
         AttachmentReference: attachmentReference,
         Attachments: undefined,
+        Status: "0",
+        ApprovedAmount: "0",
+        ReferenceDRNumber: "",
+        Remarks: "Borrower submitted successfully",
       };
 
       await axios.post(
@@ -663,6 +723,16 @@ const NewAssetDisbursement: React.FC = () => {
 
       const newMax = await fetchMaxFdsbNumber();
       setMaxFdsbNumber(newMax);
+
+      // Update local state to reflect submission
+      setRequests((prevRequests) => {
+        const newRequests = [...prevRequests];
+        newRequests[index].Remarks = "Borrower submitted successfully";
+        newRequests[index].Status = "0";
+        newRequests[index].ApprovedAmount = "0";
+        newRequests[index].ReferenceDRNumber = "";
+        return newRequests;
+      });
     } catch (error) {
       console.error("Error inserting asset disbursement request:", error);
       addNotification("Error inserting asset disbursement request", "error");
@@ -675,13 +745,58 @@ const NewAssetDisbursement: React.FC = () => {
     }
   };
 
+  const handleSubmitAll = async () => {
+    const rowsWithBorrowerAccount = requests
+      .map((req, index) => ({ req, index }))
+      .filter(({ req }) => req.BorrowerAccountNumber);
+  
+    if (rowsWithBorrowerAccount.length === 0) {
+      addNotification("No rows with borrower account numbers selected to submit", "error");
+      return;
+    }
+  
+    let successCount = 0;
+    let currentMaxFdsbNumber = maxFdsbNumber;
+  
+    for (const { index } of rowsWithBorrowerAccount) {
+      if (!submittedRows[index]) {
+        try {
+          // Update the maxFdsbNumber for the current row
+          setMaxFdsbNumber(currentMaxFdsbNumber);
+  
+          await handleSubmit(index);
+  
+          // Increment the maxFdsbNumber based on the number of attachments in the current row
+          const attachments = requests[index].Attachments;
+          if (attachments.length > 0) {
+            currentMaxFdsbNumber += attachments.length;
+          } else {
+            currentMaxFdsbNumber += 1; // Increment by 1 if no attachments
+          }
+  
+          successCount++;
+        } catch (error) {
+          console.error(`Error submitting row ${index}:`, error);
+        }
+      }
+    }
+  
+    if (successCount > 0) {
+      addNotification(
+        `Inserted ${successCount} row(s) successfully`,
+        "success"
+      );
+    }
+  };
+  
+
   const addRows = () => {
     setRequests([
       ...requests,
       ...Array.from({ length: 10 }, () => ({
         ProjectNumber: "",
-        AssetNumber: "",
-        Category: "",
+        AssetNumber: buildings.length === 1 ? buildings[0].asm_asst_nmbr_n : "",
+        Category: categories.length === 1 ? categories[0] : "",
         SubCategory: "",
         PartyName: "",
         PartyGSTIN: "",
@@ -709,8 +824,8 @@ const NewAssetDisbursement: React.FC = () => {
         PartyAccountName: "",
         PartyAccountNumber: "",
         PartyAccountIFSC: "",
-        Status: "",
-        ApprovedAmount: "",
+        Status: "0",
+        ApprovedAmount: "0",
         ReferenceDRNumber: "",
         Remarks: "",
         AttachmentReference: "",
@@ -730,7 +845,7 @@ const NewAssetDisbursement: React.FC = () => {
     const request = requests[index];
     const totalAmount =
       request.PartyDocumentTotalAmount === "" ||
-      isNaN(Number(request.PartyDocumentTotalAmount))
+        isNaN(Number(request.PartyDocumentTotalAmount))
         ? 0
         : Number(request.PartyDocumentTotalAmount);
     const newErrors = { ...errors[index] };
@@ -741,7 +856,6 @@ const NewAssetDisbursement: React.FC = () => {
       "PartyRetentionAmount",
       "PartyOtherDeductionAmount",
       "PartyOutstandingAmount",
-      "ApprovedAmount",
     ] as const;
 
     fields.forEach((field) => {
@@ -770,9 +884,36 @@ const NewAssetDisbursement: React.FC = () => {
     return Object.keys(newErrors).length === 0;
   };
 
+  const today = new Date().toISOString().split('T')[0]; // Get today's date in YYYY-MM-DD format
+
+  const getAccountTypeLabel = (accountType: string) => {
+    switch (accountType) {
+      case 'C':
+        return 'Collection (100%)';
+      case 'R':
+        return 'RERA (70%)';
+      case 'E':
+        return 'Escrow (30%)';
+      case 'T':
+        return 'Project Cost';
+      case 'P':
+        return 'Pass Through Charges';
+      default:
+        return '';
+    }
+  };
+
   return (
     <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">New Asset Disbursement</h1>
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-2xl font-bold">New Asset Disbursement</h1>
+        <button
+          onClick={handleSubmitAll}
+          className="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600"
+        >
+          Submit All
+        </button>
+      </div>
 
       <div className="fixed top-4 right-4 space-y-2 z-50">
         {notifications.map((notification, index) => (
@@ -789,59 +930,49 @@ const NewAssetDisbursement: React.FC = () => {
         <table className="min-w-full border border-gray-200">
           <thead>
             <tr>
-              <th className="py-2 px-4 border-b">Asset</th>
-              <th className="py-2 px-4 border-b">Category</th>
-              <th className="py-2 px-4 border-b">Sub Category</th>
-              <th className="py-2 px-4 border-b">Party Name</th>
-              <th className="py-2 px-4 border-b">Party GSTIN</th>
-              <th className="py-2 px-4 border-b">Party PAN</th>
-              <th className="py-2 px-4 border-b">Party Email</th>
-              <th className="py-2 px-4 border-b">Party Mobile</th>
-              <th className="py-2 px-4 border-b">Reason</th>
-              <th className="py-2 px-4 border-b">Purchase Order</th>
-              <th className="py-2 px-4 border-b">Total Order Amount</th>
-              <th className="py-2 px-4 border-b">Document Type</th>
-              <th className="py-2 px-4 border-b">Party Document Number</th>
-              <th className="py-2 px-4 border-b">Party Document Date</th>
-              <th className="py-2 px-4 border-b">
-                Party Document Payable Days
-              </th>
-              <th className="py-2 px-4 border-b">Party Document Amount</th>
-              <th className="py-2 px-4 border-b">Party Document GST Amount</th>
-              <th className="py-2 px-4 border-b">
-                Party Document Total Amount
-              </th>
-              <th className="py-2 px-4 border-b">Party TDS Amount</th>
-              <th className="py-2 px-4 border-b">Party Advance Adjusted</th>
-              <th className="py-2 px-4 border-b">Party Retention Amount</th>
-              <th className="py-2 px-4 border-b">
-                Party Other Deduction Amount
-              </th>
-              <th className="py-2 px-4 border-b">Party Payable Amount</th>
-              <th className="py-2 px-4 border-b">Party Outstanding Amount</th>
-              <th className="py-2 px-4 border-b">Borrower Account Number</th>
-              <th className="py-2 px-4 border-b">Party Bank Name</th>
-              <th className="py-2 px-4 border-b">Party Account Name</th>
-              <th className="py-2 px-4 border-b">Party Account Number</th>
-              <th className="py-2 px-4 border-b">Party Account IFSC</th>
-              <th className="py-2 px-4 border-b">Status</th>
-              <th className="py-2 px-4 border-b">Approved Amount</th>
-              <th className="py-2 px-4 border-b">Reference DR Number</th>
-              <th className="py-2 px-4 border-b">Remarks</th>
-              <th className="py-2 px-4 border-b">Attachment</th>
-              <th className="py-2 px-4 border-b">Actions</th>
+              <th className="py-3 px-4 border-b bg-[#00134B] text-white w-48">Asset</th>
+              <th className="py-3 px-4 border-b bg-[#00134B] text-white w-48">Category</th>
+              <th className="py-3 px-4 border-b bg-[#00134B] text-white w-48">Sub Category</th>
+              <th className="py-3 px-4 border-b bg-[#00134B] text-white w-48">Party Name</th>
+              <th className="py-3 px-4 border-b bg-[#00134B] text-white w-48">Party GSTIN</th>
+              <th className="py-3 px-4 border-b bg-[#00134B] text-white w-48">Party PAN</th>
+              <th className="py-3 px-4 border-b bg-[#00134B] text-white w-48">Party Email</th>
+              <th className="py-3 px-4 border-b bg-[#00134B] text-white w-48">Party Mobile</th>
+              <th className="py-3 px-4 border-b bg-[#00134B] text-white w-48">Reason</th>
+              <th className="py-3 px-4 border-b bg-[#00134B] text-white w-48">Purchase Order</th>
+              <th className="py-3 px-4 border-b bg-[#00134B] text-white w-48">Total Order Amount</th>
+              <th className="py-3 px-4 border-b bg-[#00134B] text-white w-48">Document Type</th>
+              <th className="py-3 px-4 border-b bg-[#00134B] text-white w-48">Party Document Number</th>
+              <th className="py-3 px-4 border-b bg-[#00134B] text-white w-48">Party Document Date</th>
+              <th className="py-3 px-4 border-b bg-[#00134B] text-white w-48">Party Document Payable Days</th>
+              <th className="py-3 px-4 border-b bg-[#00134B] text-white w-48">Party Document Amount</th>
+              <th className="py-3 px-4 border-b bg-[#00134B] text-white w-48">Party Document GST Amount</th>
+              <th className="py-3 px-4 border-b bg-[#00134B] text-white w-48">Party Document Total Amount</th>
+              <th className="py-3 px-4 border-b bg-[#00134B] text-white w-48">Party TDS Amount</th>
+              <th className="py-3 px-4 border-b bg-[#00134B] text-white w-48">Party Advance Adjusted</th>
+              <th className="py-3 px-4 border-b bg-[#00134B] text-white w-48">Party Retention Amount</th>
+              <th className="py-3 px-4 border-b bg-[#00134B] text-white w-48">Party Other Deduction Amount</th>
+              <th className="py-3 px-4 border-b bg-[#00134B] text-white w-48">Party Payable Amount</th>
+              <th className="py-3 px-4 border-b bg-[#00134B] text-white w-48">Party Outstanding Amount</th>
+              <th className="py-3 px-4 border-b bg-[#00134B] text-white w-48">Borrower Account Number</th>
+              <th className="py-3 px-4 border-b bg-[#00134B] text-white w-48">Party Bank Name</th>
+              <th className="py-3 px-4 border-b bg-[#00134B] text-white w-48">Party Account Name</th>
+              <th className="py-3 px-4 border-b bg-[#00134B] text-white w-48">Party Account Number</th>
+              <th className="py-3 px-4 border-b bg-[#00134B] text-white w-48">Party Account IFSC</th>
+              <th className="py-3 px-4 border-b bg-[#00134B] text-white w-48">Attachment</th>
+              <th className="py-3 px-4 border-b bg-[#00134B] text-white w-48">Actions</th>
             </tr>
           </thead>
           <tbody>
             {requests.map((request, index) => (
               <tr key={index}>
-                <td className="py-2 px-4 border-b">
+                <td className="py-3 px-4 border-b">
                   <select
                     value={request.AssetNumber}
                     onChange={(e) =>
                       handleInputChange(index, "AssetNumber", e.target.value)
                     }
-                    className="border p-2 w-28"
+                    className="border p-2 w-36"
                     disabled={submittedRows[index]}
                   >
                     <option value="">Select a building</option>
@@ -855,13 +986,13 @@ const NewAssetDisbursement: React.FC = () => {
                     ))}
                   </select>
                 </td>
-                <td className="py-2 px-4 border-b">
+                <td className="py-3 px-4 border-b">
                   <select
                     value={request.Category}
                     onChange={(e) =>
                       handleInputChange(index, "Category", e.target.value)
                     }
-                    className="border p-2 w-full"
+                    className="border p-2 w-36"
                     disabled={submittedRows[index]}
                   >
                     <option value="">Select Category</option>
@@ -872,103 +1003,109 @@ const NewAssetDisbursement: React.FC = () => {
                     ))}
                   </select>
                 </td>
-                <td className="py-2 px-4 border-b">
+                <td className="py-3 px-4 border-b">
                   <select
                     value={request.SubCategory}
                     onChange={(e) =>
                       handleInputChange(index, "SubCategory", e.target.value)
                     }
-                    className="border p-2 w-full"
+                    className="border p-2 w-36"
                     disabled={!request.Category || submittedRows[index]}
                   >
-                    <option value="">Select SubCategory</option>
+                    <option value="">Select Subcategory</option>
                     {request.Category && subCategories[request.Category]
                       ? subCategories[request.Category].map((subCategory) => (
-                          <option key={subCategory} value={subCategory}>
-                            {subCategory}
-                          </option>
-                        ))
+                        <option key={subCategory} value={subCategory}>
+                          {subCategory}
+                        </option>
+                      ))
                       : null}
                   </select>
                 </td>
-                <td className="py-2 px-4 border-b">
+                <td className="py-3 px-4 border-b">
                   <input
                     type="text"
                     value={request.PartyName}
                     onChange={(e) =>
                       handleInputChange(index, "PartyName", e.target.value)
                     }
-                    className="border p-2 w-full"
+                    className="border p-2 w-36"
                     disabled={submittedRows[index]}
                   />
                 </td>
-                <td className="py-2 px-4 border-b">
+                <td className="py-3 px-4 border-b">
                   <input
                     type="text"
                     value={request.PartyGSTIN}
                     onChange={(e) =>
                       handleInputChange(index, "PartyGSTIN", e.target.value)
                     }
-                    className="border p-2 w-full"
+                    className="border p-2 w-36"
                     disabled={submittedRows[index]}
                   />
+                  {errors[index]?.PartyGSTIN && (
+                    <span className="text-red-500 text-sm">
+                      {errors[index]?.PartyGSTIN}
+                    </span>
+                  )}
                 </td>
-                <td className="py-2 px-4 border-b">
+
+                <td className="py-3 px-4 border-b">
                   <input
                     type="text"
                     value={request.PartyPAN}
                     onChange={(e) =>
                       handleInputChange(index, "PartyPAN", e.target.value)
                     }
-                    className="border p-2 w-full"
+                    className="border p-2 w-36"
                     disabled={submittedRows[index]}
                   />
                 </td>
-                <td className="py-2 px-4 border-b">
+                <td className="py-3 px-4 border-b">
                   <input
                     type="text"
                     value={request.PartyEmail}
                     onChange={(e) =>
                       handleInputChange(index, "PartyEmail", e.target.value)
                     }
-                    className="border p-2 w-full"
+                    className="border p-2 w-36"
                     disabled={submittedRows[index]}
                   />
                 </td>
-                <td className="py-2 px-4 border-b">
+                <td className="py-3 px-4 border-b">
                   <input
                     type="text"
                     value={request.PartyMobile}
                     onChange={(e) =>
                       handleInputChange(index, "PartyMobile", e.target.value)
                     }
-                    className="border p-2 w-full"
+                    className="border p-2 w-36"
                     disabled={submittedRows[index]}
                   />
                 </td>
-                <td className="py-2 px-4 border-b">
+                <td className="py-3 px-4 border-b">
                   <input
                     type="text"
                     value={request.Reason}
                     onChange={(e) =>
                       handleInputChange(index, "Reason", e.target.value)
                     }
-                    className="border p-2 w-full"
+                    className="border p-2 w-36"
                     disabled={submittedRows[index]}
                   />
                 </td>
-                <td className="py-2 px-4 border-b">
+                <td className="py-3 px-4 border-b">
                   <input
                     type="text"
                     value={request.PurchaseOrder}
                     onChange={(e) =>
                       handleInputChange(index, "PurchaseOrder", e.target.value)
                     }
-                    className="border p-2 w-full"
+                    className="border p-2 w-36"
                     disabled={submittedRows[index]}
                   />
                 </td>
-                <td className="py-2 px-4 border-b">
+                <td className="py-3 px-4 border-b">
                   <input
                     type="number"
                     value={request.TotalOrderAmount}
@@ -979,17 +1116,17 @@ const NewAssetDisbursement: React.FC = () => {
                         e.target.value
                       )
                     }
-                    className="border p-2 w-full"
+                    className="border p-2 w-36"
                     disabled={submittedRows[index]}
                   />
                 </td>
-                <td className="py-2 px-4 border-b">
+                <td className="py-3 px-4 border-b">
                   <select
                     value={request.DocumentType}
                     onChange={(e) =>
                       handleInputChange(index, "DocumentType", e.target.value)
                     }
-                    className="border p-2 w-full"
+                    className="border p-2 w-36"
                     disabled={submittedRows[index]}
                   >
                     <option value="">Select Document Type</option>
@@ -1000,7 +1137,7 @@ const NewAssetDisbursement: React.FC = () => {
                     <option value="CN">CN</option>
                   </select>
                 </td>
-                <td className="py-2 px-4 border-b">
+                <td className="py-3 px-4 border-b">
                   <input
                     type="text"
                     value={request.PartyDocumentNumber}
@@ -1011,11 +1148,11 @@ const NewAssetDisbursement: React.FC = () => {
                         e.target.value
                       )
                     }
-                    className="border p-2 w-full"
+                    className="border p-2 w-36"
                     disabled={submittedRows[index]}
                   />
                 </td>
-                <td className="py-2 px-4 border-b">
+                <td className="py-3 px-4 border-b">
                   <input
                     type="date"
                     value={request.PartyDocumentDate}
@@ -1026,11 +1163,12 @@ const NewAssetDisbursement: React.FC = () => {
                         e.target.value
                       )
                     }
-                    className="border p-2 w-full"
+                    className="border p-2 w-36"
                     disabled={submittedRows[index]}
+                    max={today}
                   />
                 </td>
-                <td className="py-2 px-4 border-b">
+                <td className="py-3 px-4 border-b">
                   <input
                     type="number"
                     value={request.PartyDocumentPayableDays}
@@ -1041,11 +1179,11 @@ const NewAssetDisbursement: React.FC = () => {
                         e.target.value
                       )
                     }
-                    className="border p-2 w-full"
+                    className="border p-2 w-36"
                     disabled={submittedRows[index]}
                   />
                 </td>
-                <td className="py-2 px-4 border-b">
+                <td className="py-3 px-4 border-b">
                   <input
                     type="number"
                     value={request.PartyDocumentAmount}
@@ -1056,11 +1194,11 @@ const NewAssetDisbursement: React.FC = () => {
                         e.target.value
                       )
                     }
-                    className="border p-2 w-full"
+                    className="border p-2 w-36"
                     disabled={submittedRows[index]}
                   />
                 </td>
-                <td className="py-2 px-4 border-b">
+                <td className="py-3 px-4 border-b">
                   <input
                     type="number"
                     value={request.PartyDocumentGSTAmount}
@@ -1071,23 +1209,23 @@ const NewAssetDisbursement: React.FC = () => {
                         e.target.value
                       )
                     }
-                    className="border p-2 w-full"
+                    className="border p-2 w-36"
                     disabled={submittedRows[index]}
                   />
                 </td>
-                <td className="py-2 px-4 border-b">
-                  <span className="block p-2 w-full">
+                <td className="py-3 px-4 border-b">
+                  <span className="block p-2 w-36">
                     {request.PartyDocumentTotalAmount}
                   </span>
                 </td>
-                <td className="py-2 px-4 border-b">
+                <td className="py-3 px-4 border-b">
                   <input
                     type="number"
                     value={request.PartyTDSAmount}
                     onChange={(e) =>
                       handleInputChange(index, "PartyTDSAmount", e.target.value)
                     }
-                    className="border p-2 w-full"
+                    className="border p-2 w-36"
                     disabled={submittedRows[index]}
                   />
                   {errors[index]?.PartyTDSAmount && (
@@ -1096,7 +1234,7 @@ const NewAssetDisbursement: React.FC = () => {
                     </span>
                   )}
                 </td>
-                <td className="py-2 px-4 border-b">
+                <td className="py-3 px-4 border-b">
                   <input
                     type="number"
                     value={request.PartyAdvanceAdjusted}
@@ -1107,7 +1245,7 @@ const NewAssetDisbursement: React.FC = () => {
                         e.target.value
                       )
                     }
-                    className="border p-2 w-full"
+                    className="border p-2 w-36"
                     disabled={submittedRows[index]}
                   />
                   {errors[index]?.PartyAdvanceAdjusted && (
@@ -1116,7 +1254,7 @@ const NewAssetDisbursement: React.FC = () => {
                     </span>
                   )}
                 </td>
-                <td className="py-2 px-4 border-b">
+                <td className="py-3 px-4 border-b">
                   <input
                     type="number"
                     value={request.PartyRetentionAmount}
@@ -1127,7 +1265,7 @@ const NewAssetDisbursement: React.FC = () => {
                         e.target.value
                       )
                     }
-                    className="border p-2 w-full"
+                    className="border p-2 w-36"
                     disabled={submittedRows[index]}
                   />
                   {errors[index]?.PartyRetentionAmount && (
@@ -1136,7 +1274,7 @@ const NewAssetDisbursement: React.FC = () => {
                     </span>
                   )}
                 </td>
-                <td className="py-2 px-4 border-b">
+                <td className="py-3 px-4 border-b">
                   <input
                     type="number"
                     value={request.PartyOtherDeductionAmount}
@@ -1147,7 +1285,7 @@ const NewAssetDisbursement: React.FC = () => {
                         e.target.value
                       )
                     }
-                    className="border p-2 w-full"
+                    className="border p-2 w-36"
                     disabled={submittedRows[index]}
                   />
                   {errors[index]?.PartyOtherDeductionAmount && (
@@ -1156,12 +1294,12 @@ const NewAssetDisbursement: React.FC = () => {
                     </span>
                   )}
                 </td>
-                <td className="py-2 px-4 border-b">
-                  <span className="block p-2 w-full">
+                <td className="py-3 px-4 border-b">
+                  <span className="block p-2 w-36">
                     {request.PartyPayableAmount}
                   </span>
                 </td>
-                <td className="py-2 px-4 border-b">
+                <td className="py-3 px-4 border-b">
                   <input
                     type="number"
                     value={request.PartyOutstandingAmount}
@@ -1172,7 +1310,7 @@ const NewAssetDisbursement: React.FC = () => {
                         e.target.value
                       )
                     }
-                    className="border p-2 w-full"
+                    className="border p-2 w-36"
                     disabled={submittedRows[index]}
                   />
                   {errors[index]?.PartyOutstandingAmount && (
@@ -1181,7 +1319,7 @@ const NewAssetDisbursement: React.FC = () => {
                     </span>
                   )}
                 </td>
-                <td className="py-2 px-4 border-b">
+                <td className="py-3 px-4 border-b">
                   <select
                     value={request.BorrowerAccountNumber}
                     onChange={(e) =>
@@ -1191,7 +1329,7 @@ const NewAssetDisbursement: React.FC = () => {
                         e.target.value
                       )
                     }
-                    className="border p-2 w-full"
+                    className="border p-2 w-36"
                     disabled={
                       submittedRows[index] ||
                       (accountNumbers[index].length === 0 &&
@@ -1204,12 +1342,13 @@ const NewAssetDisbursement: React.FC = () => {
                         `Rendering ProjectAssetBankAccount[${index}][${i}]:`,
                         account
                       );
+                      const accountType = getAccountTypeLabel(account.AccountType);
                       return (
                         <option
                           key={`account-${i}-${account.AccountNumber}`}
                           value={account.AccountNumber}
                         >
-                          {account.AccountNumber}
+                          {account.AccountNumber} {accountType ? `(${accountType})` : ''}
                         </option>
                       );
                     })}
@@ -1223,24 +1362,24 @@ const NewAssetDisbursement: React.FC = () => {
                           key={`dp-account-${i}-${account.AccountNumber}`}
                           value={account.AccountNumber}
                         >
-                          {account.AccountNumber}
+                          {account.AccountNumber} (DP)
                         </option>
                       );
                     })}
                   </select>
                 </td>
-                <td className="py-2 px-4 border-b">
+                <td className="py-3 px-4 border-b">
                   <input
                     type="text"
                     value={request.PartyBankName}
                     onChange={(e) =>
                       handleInputChange(index, "PartyBankName", e.target.value)
                     }
-                    className="border p-2 w-full"
+                    className="border p-2 w-36"
                     disabled={submittedRows[index]}
                   />
                 </td>
-                <td className="py-2 px-4 border-b">
+                <td className="py-3 px-4 border-b">
                   <input
                     type="text"
                     value={request.PartyAccountName}
@@ -1251,11 +1390,11 @@ const NewAssetDisbursement: React.FC = () => {
                         e.target.value
                       )
                     }
-                    className="border p-2 w-full"
+                    className="border p-2 w-36"
                     disabled={submittedRows[index]}
                   />
                 </td>
-                <td className="py-2 px-4 border-b">
+                <td className="py-3 px-4 border-b">
                   <input
                     type="text"
                     value={request.PartyAccountNumber}
@@ -1266,11 +1405,11 @@ const NewAssetDisbursement: React.FC = () => {
                         e.target.value
                       )
                     }
-                    className="border p-2 w-full"
+                    className="border p-2 w-36"
                     disabled={submittedRows[index]}
                   />
                 </td>
-                <td className="py-2 px-4 border-b">
+                <td className="py-3 px-4 border-b">
                   <input
                     type="text"
                     value={request.PartyAccountIFSC}
@@ -1281,117 +1420,63 @@ const NewAssetDisbursement: React.FC = () => {
                         e.target.value
                       )
                     }
-                    className="border p-2 w-full"
+                    className="border p-2 w-36"
                     disabled={submittedRows[index]}
                   />
                 </td>
-                <td className="py-2 px-4 border-b">
-                  <input
-                    type="text"
-                    value={request.Status}
-                    onChange={(e) =>
-                      handleInputChange(index, "Status", e.target.value)
-                    }
-                    className="border p-2 w-full"
-                    disabled={submittedRows[index]}
-                  />
-                </td>
-                <td className="py-2 px-4 border-b">
-                  <input
-                    type="number"
-                    value={request.ApprovedAmount}
-                    onChange={(e) =>
-                      handleInputChange(index, "ApprovedAmount", e.target.value)
-                    }
-                    className="border p-2 w-full"
-                    disabled={submittedRows[index]}
-                  />
-                  {errors[index]?.ApprovedAmount && (
-                    <span className="text-red-500 text-sm">
-                      {errors[index]?.ApprovedAmount}
-                    </span>
-                  )}
-                </td>
-                <td className="py-2 px-4 border-b">
-                  <input
-                    type="number"
-                    value={request.ReferenceDRNumber}
-                    onChange={(e) =>
-                      handleInputChange(
-                        index,
-                        "ReferenceDRNumber",
-                        e.target.value
-                      )
-                    }
-                    className="border p-2 w-full"
-                    disabled={submittedRows[index]}
-                  />
-                </td>
-                <td className="py-2 px-4 border-b">
-                  <input
-                    type="text"
-                    value={request.Remarks}
-                    onChange={(e) =>
-                      handleInputChange(index, "Remarks", e.target.value)
-                    }
-                    className="border p-2 w-full"
-                    disabled={submittedRows[index]}
-                  />
-                </td>
-                <td className="py-2 px-4 border-b">
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="file"
-                      id={`file-input-${index}`}
-                      className="hidden"
-                      multiple
-                      onChange={(e) => handleFileChange(index, e)}
-                      disabled={submittedRows[index]}
-                    />
-                    <label
-                      htmlFor={`file-input-${index}`}
-                      className={`cursor-pointer text-2xl text-gray-600 ${
-                        submittedRows[index]
-                          ? "opacity-50 cursor-not-allowed"
-                          : ""
-                      }`}
-                    >
-                      +
-                    </label>
-                    <div className="flex flex-wrap gap-2">
-                      {request.Attachments.map(({ name, type }, fileIndex) => (
-                        <div
-                          key={fileIndex}
-                          className="flex flex-col items-center space-y-1 relative group"
-                        >
-                          <div className="relative">
-                            {getFileIcon(type)}
-                            <button
-                              onClick={() => handleRemoveFile(index, fileIndex)}
-                              className={`absolute -top-2 -right-2 text-red-500 text-lg ${
-                                submittedRows[index] ? "hidden" : ""
-                              }`}
-                              disabled={submittedRows[index]}
-                            >
-                              <IoClose />
-                            </button>
-                          </div>
-                          <span className="text-sm text-gray-800 text-center max-w-[100px] truncate group-hover:whitespace-normal group-hover:overflow-visible">
-                            {name}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </td>
-                <td className="py-2 px-4 border-b">
+                <td className="py-3 px-4 border-b">
+  <div className="flex items-center space-x-2">
+    <input
+      type="file"
+      id={`file-input-${index}`}
+      className="hidden"
+      multiple
+      onChange={(e) => handleFileChange(index, e)}
+      disabled={submittedRows[index]}
+    />
+    <label
+      htmlFor={`file-input-${index}`}
+      className={`cursor-pointer text-2xl text-gray-600 ${
+        submittedRows[index] ? "opacity-50 cursor-not-allowed" : ""
+      }`}
+    >
+      +
+    </label>
+    <div className="flex flex-row gap-2 items-center">
+      {request.Attachments.map(({ name, type }, fileIndex) => (
+        <div
+          key={fileIndex}
+          className="relative group"
+        >
+          <div className="relative">
+            {getFileIcon(type)}
+            <button
+              onClick={() => handleRemoveFile(index, fileIndex)}
+              className={`absolute -top-2 -right-2 text-red-500 text-lg ${
+                submittedRows[index] ? "hidden" : ""
+              }`}
+              disabled={submittedRows[index]}
+            >
+              <IoClose />
+            </button>
+          </div>
+          <span
+            className="absolute top-[-2.5rem] left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap max-w-[200px] truncate"
+          >
+            {name}
+          </span>
+        </div>
+      ))}
+    </div>
+  </div>
+</td>
+                <td className="py-3 px-4 border-b">
                   <button
                     onClick={() => handleSubmit(index)}
-                    className={`py-2 px-4 rounded text-white flex items-center justify-center ${
-                      loading[index] || submittedRows[index]
-                        ? "bg-gray-400 cursor-not-allowed"
-                        : "bg-blue-500 hover:bg-blue-600"
-                    }`}
+                    className={`py-2 px-4 rounded text-white flex items-center justify-center ${loading[index] || submittedRows[index]
+                      ? "bg-gray-400 cursor-not-allowed"
+                      : "bg-blue-500 hover:bg-blue-600"
+                      }`}
                     disabled={loading[index] || submittedRows[index]}
                   >
                     {loading[index] ? (
