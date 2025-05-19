@@ -439,13 +439,13 @@ const NewAssetDisbursement: React.FC = () => {
 
     // Validate GSTIN and extract PAN if valid
     if (field === "PartyGSTIN" && typeof value === "string") {
-      const gstinRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+      const gstinRegex = /^\d{2}[A-Z]{5}\d{4}[A-Z]{1}[A-Z\d]{1}[Z]{1}[A-Z\d]{1}$/;
       const gstin = value.trim();
 
       if (gstin.length === 0) {
         delete newErrors[index].PartyGSTIN;
       } else if (!gstinRegex.test(gstin)) {
-        newErrors[index] = { ...newErrors[index], PartyGSTIN: "Invalid GSTIN format. It should be 15 characters long." };
+        newErrors[index] = { ...newErrors[index], PartyGSTIN: "Invalid GSTIN format. It should match the pattern: \\d{2}[A-Z]{5}\\d{4}[A-Z]{1}[A-Z\\d]{1}[Z]{1}[A-Z\\d]{1}" };
       } else {
         delete newErrors[index].PartyGSTIN;
         // Extract the first 10 characters from the GSTIN
@@ -565,7 +565,6 @@ const NewAssetDisbursement: React.FC = () => {
     validateAmounts(index);
   };
 
-
   const handleFileChange = (
     index: number,
     event: React.ChangeEvent<HTMLInputElement>
@@ -658,114 +657,124 @@ const NewAssetDisbursement: React.FC = () => {
   };
 
   const handleSubmit = async (index: number) => {
-    if (!validateAmounts(index, true)) {
+  if (!validateAmounts(index, true)) {
+    return;
+  }
+
+  // Check if GSTN is valid
+  const gstinRegex = /^\d{2}[A-Z]{5}\d{4}[A-Z]{1}[A-Z\d]{1}[Z]{1}[A-Z\d]{1}$/;
+  const gstin = (requests[index].PartyGSTIN || "").trim();
+
+  if (gstin.length > 0 && !gstinRegex.test(gstin)) {
+    addNotification("Invalid GSTN entered", "error");
+    return;
+  }
+
+  try {
+    setLoading((prev) => {
+      const newLoading = [...prev];
+      newLoading[index] = true;
+      return newLoading;
+    });
+
+    const projectNumber = localStorage.getItem("projectNumber");
+    if (!projectNumber) {
+      addNotification("Project number not found in localStorage", "error");
       return;
     }
 
-    try {
-      setLoading((prev) => {
-        const newLoading = [...prev];
-        newLoading[index] = true;
-        return newLoading;
-      });
+    const attachments = requests[index].Attachments;
+    let attachmentReference = "";
 
-      const projectNumber = localStorage.getItem("projectNumber");
-      if (!projectNumber) {
-        addNotification("Project number not found in localStorage", "error");
-        return;
-      }
-
-      const attachments = requests[index].Attachments;
-      let attachmentReference = "";
-
-      if (attachments.length > 0) {
-        const fileCount = attachments.length;
-        const referenceNumbers = Array.from(
-          { length: fileCount },
-          (_, i) => maxFdsbNumber + i + 1
-        );
-        console.log("referenceNumbers:", referenceNumbers);
-        attachmentReference = referenceNumbers.join(",");
-        console.log("attachmentReference:", attachmentReference);
-
-        const formData = new FormData();
-        attachments.forEach(({ file }, i) => {
-          formData.append(`files[${i}]`, file);
-        });
-        await axios.post(endpoints.fileupload, formData, {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-        });
-      }
-
-      const requestData = {
-        ...requests[index],
-        AttachmentReference: attachmentReference,
-        Attachments: undefined,
-        Status: "0",
-        ApprovedAmount: "0",
-        ReferenceDRNumber: "",
-        Remarks: "Borrower submitted successfully",
-      };
-
-      await axios.post(
-        `${endpoints.disbursement}/${projectNumber}`,
-        requestData
+    if (attachments.length > 0) {
+      const fileCount = attachments.length;
+      const referenceNumbers = Array.from(
+        { length: fileCount },
+        (_, i) => maxFdsbNumber + i + 1
       );
-      addNotification("Insert successful", "success");
+      console.log("referenceNumbers:", referenceNumbers);
+      attachmentReference = referenceNumbers.join(",");
+      console.log("attachmentReference:", attachmentReference);
 
-      setSubmittedRows((prev) => {
-        const newSubmitted = [...prev];
-        newSubmitted[index] = true;
-        return newSubmitted;
+      const formData = new FormData();
+      attachments.forEach(({ file }, i) => {
+        formData.append(`files[${i}]`, file);
       });
-
-      const newMax = await fetchMaxFdsbNumber();
-      setMaxFdsbNumber(newMax);
-
-      // Update local state to reflect submission
-      setRequests((prevRequests) => {
-        const newRequests = [...prevRequests];
-        newRequests[index].Remarks = "Borrower submitted successfully";
-        newRequests[index].Status = "0";
-        newRequests[index].ApprovedAmount = "0";
-        newRequests[index].ReferenceDRNumber = "";
-        return newRequests;
-      });
-    } catch (error) {
-      console.error("Error inserting asset disbursement request:", error);
-      addNotification("Error inserting asset disbursement request", "error");
-    } finally {
-      setLoading((prev) => {
-        const newLoading = [...prev];
-        newLoading[index] = false;
-        return newLoading;
+      await axios.post(endpoints.fileupload, formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
       });
     }
-  };
+
+    const requestData = {
+      ...requests[index],
+      AttachmentReference: attachmentReference,
+      Attachments: undefined,
+      Status: "0",
+      ApprovedAmount: "0",
+      ReferenceDRNumber: "",
+      Remarks: "Borrower submitted successfully",
+    };
+
+    await axios.post(
+      `${endpoints.disbursement}/${projectNumber}`,
+      requestData
+    );
+    addNotification("Insert successful", "success");
+
+    setSubmittedRows((prev) => {
+      const newSubmitted = [...prev];
+      newSubmitted[index] = true;
+      return newSubmitted;
+    });
+
+    const newMax = await fetchMaxFdsbNumber();
+    setMaxFdsbNumber(newMax);
+
+    // Update local state to reflect submission
+    setRequests((prevRequests) => {
+      const newRequests = [...prevRequests];
+      newRequests[index].Remarks = "Borrower submitted successfully";
+      newRequests[index].Status = "0";
+      newRequests[index].ApprovedAmount = "0";
+      newRequests[index].ReferenceDRNumber = "";
+      return newRequests;
+    });
+  } catch (error) {
+    console.error("Error inserting asset disbursement request:", error);
+    addNotification("Error inserting asset disbursement request", "error");
+  } finally {
+    setLoading((prev) => {
+      const newLoading = [...prev];
+      newLoading[index] = false;
+      return newLoading;
+    });
+  }
+};
+
 
   const handleSubmitAll = async () => {
     const rowsWithBorrowerAccount = requests
       .map((req, index) => ({ req, index }))
       .filter(({ req }) => req.BorrowerAccountNumber);
-  
+
     if (rowsWithBorrowerAccount.length === 0) {
       addNotification("No rows with borrower account numbers selected to submit", "error");
       return;
     }
-  
+
     let successCount = 0;
     let currentMaxFdsbNumber = maxFdsbNumber;
-  
+
     for (const { index } of rowsWithBorrowerAccount) {
       if (!submittedRows[index]) {
         try {
           // Update the maxFdsbNumber for the current row
           setMaxFdsbNumber(currentMaxFdsbNumber);
-  
+
           await handleSubmit(index);
-  
+
           // Increment the maxFdsbNumber based on the number of attachments in the current row
           const attachments = requests[index].Attachments;
           if (attachments.length > 0) {
@@ -773,14 +782,14 @@ const NewAssetDisbursement: React.FC = () => {
           } else {
             currentMaxFdsbNumber += 1; // Increment by 1 if no attachments
           }
-  
+
           successCount++;
         } catch (error) {
           console.error(`Error submitting row ${index}:`, error);
         }
       }
     }
-  
+
     if (successCount > 0) {
       addNotification(
         `Inserted ${successCount} row(s) successfully`,
@@ -788,7 +797,6 @@ const NewAssetDisbursement: React.FC = () => {
       );
     }
   };
-  
 
   const addRows = () => {
     setRequests([
